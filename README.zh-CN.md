@@ -51,14 +51,13 @@ OsaMail 0.1.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
 
 ### Homebrew
 
-Tap 和首个版本发布后，可运行：
-
 ```bash
 brew install tinylion1024/tap/osamail
 ```
 
-本源码仓库目前不包含已发布的 Tap。维护者可以按照
-[Homebrew 发布指南](docs/homebrew.md)创建并更新它。
+推送版本标签后，GitHub Actions 会创建 GitHub Release；发布压缩包通过构建和安装
+检查后，工作流会自动更新 Homebrew Tap 中的公式。维护者可以参考
+[Homebrew 发布指南](docs/homebrew.md)了解初始化和故障恢复方式。
 
 ### GitHub Release
 
@@ -433,8 +432,9 @@ OSAMAIL_INTEGRATION=1 cargo test --test macos_integration -- --ignored
 
 ## 发布
 
-维护者必须依次完成完整本地检查、更新变更日志、发布 crate、创建 `v*` 标签以触发
-GitHub Release 工作流，最后更新 Homebrew Tap。开发命令不会执行真实发布。
+维护者必须依次完成完整本地检查、更新变更日志、发布 crate，并创建 `v*` 标签。
+GitHub Release 工作流会自动构建发布产物并更新 Homebrew Tap。开发命令不会执行
+真实发布。
 
 有序检查清单见[发布指南](docs/releasing.md)，Tap 维护方式见
 [Homebrew 指南](docs/homebrew.md)。
