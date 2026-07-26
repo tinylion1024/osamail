@@ -1,0 +1,6 @@
+/target/
+/dist/
+/.omx/
+/.codebase-memory/
+*.scpt
+.DS_Store

@@ -1,0 +1,64 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  macos:
+    name: macOS quality gate
+    runs-on: macos-14
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt,clippy
+          rustup default stable
+
+      - name: Run project checks
+        run: ./scripts/check.sh
+
+      - name: Validate clean crate publication
+        run: |
+          cargo package
+          cargo publish --dry-run
+
+      - name: Run CLI smoke tests
+        run: ./scripts/smoke-test.sh
+
+  linux:
+    name: Portable CLI surface
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install stable Rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+
+      - name: Build portable CLI
+        run: cargo build --locked
+
+      - name: Verify help and version
+        run: |
+          ./target/debug/osamail --help
+          ./target/debug/osamail --version
+
+      - name: Verify unsupported-platform behavior
+        run: |
+          set +e
+          output="$(./target/debug/osamail doctor 2>&1)"
+          status=$?
+          set -e
+          test "$status" -eq 3
+          grep -q "only supports macOS" <<<"$output"
