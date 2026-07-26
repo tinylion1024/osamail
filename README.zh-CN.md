@@ -119,6 +119,9 @@ osamail open <ref>
 ```
 
 `--quiet` 不会隐藏错误，也不会阻止明确请求的 JSON 输出。
+在交互式终端中，如果 `recent`、`unread`、`search` 或 `show` 等待 Apple Mail
+超过一秒，OsaMail 会在 stderr 显示一条简短状态提示。管道输出、JSON 和静默
+模式不受影响。
 
 ### 检查环境
 

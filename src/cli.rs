@@ -58,6 +58,14 @@ impl Command {
             Self::Search(_) => 30,
         }
     }
+
+    pub const fn progress_message(&self) -> Option<&'static str> {
+        match self {
+            Self::Recent(_) | Self::Unread(_) | Self::Search(_) => Some("Searching Apple Mail..."),
+            Self::Show(_) => Some("Reading message from Apple Mail..."),
+            Self::Doctor | Self::Accounts | Self::Open(_) | Self::Send(_) => None,
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -246,6 +254,23 @@ mod tests {
     #[test]
     fn unread_titles_conflicts_with_count() {
         assert!(Cli::try_parse_from(["osamail", "unread", "--titles", "--count"]).is_err());
+    }
+
+    #[test]
+    fn read_commands_expose_delayed_progress_messages() {
+        let recent = Cli::try_parse_from(["osamail", "recent"]).unwrap();
+        let show = Cli::try_parse_from(["osamail", "show", "message-ref"]).unwrap();
+        let accounts = Cli::try_parse_from(["osamail", "accounts"]).unwrap();
+
+        assert_eq!(
+            recent.command.progress_message(),
+            Some("Searching Apple Mail...")
+        );
+        assert_eq!(
+            show.command.progress_message(),
+            Some("Reading message from Apple Mail...")
+        );
+        assert_eq!(accounts.command.progress_message(), None);
     }
 
     #[test]

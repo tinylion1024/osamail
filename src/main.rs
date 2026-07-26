@@ -1,4 +1,11 @@
-use std::{ffi::OsStr, process::ExitCode};
+use std::{
+    ffi::OsStr,
+    io::IsTerminal,
+    process::ExitCode,
+    sync::mpsc::{self, RecvTimeoutError},
+    thread,
+    time::Duration,
+};
 
 use clap::{Parser, error::ErrorKind};
 use osamail::{automation::OsascriptRunner, cli::Cli, commands, error::OsaMailError, output};
@@ -31,12 +38,14 @@ fn main() -> ExitCode {
         }
     };
     let runner = OsascriptRunner::new();
+    let progress = DelayedProgress::start(&cli);
     let result = commands::execute(
         &cli,
         &runner,
         &mut std::io::stdin().lock(),
         &mut std::io::stdout().lock(),
     );
+    progress.finish();
 
     match result {
         Ok(()) => ExitCode::SUCCESS,
@@ -47,6 +56,52 @@ fn main() -> ExitCode {
                 eprintln!("error: failed to report OsaMail error: {write_error}");
             }
             ExitCode::from(error.exit_code())
+        }
+    }
+}
+
+struct DelayedProgress {
+    cancel: Option<mpsc::Sender<()>>,
+    worker: Option<thread::JoinHandle<()>>,
+}
+
+impl DelayedProgress {
+    fn start(cli: &Cli) -> Self {
+        if cli.json || cli.quiet || !std::io::stderr().is_terminal() {
+            return Self::disabled();
+        }
+        let Some(message) = cli.command.progress_message() else {
+            return Self::disabled();
+        };
+
+        let (cancel, receiver) = mpsc::channel();
+        let worker = thread::spawn(move || {
+            if matches!(
+                receiver.recv_timeout(Duration::from_secs(1)),
+                Err(RecvTimeoutError::Timeout)
+            ) {
+                eprintln!("{message}");
+            }
+        });
+        Self {
+            cancel: Some(cancel),
+            worker: Some(worker),
+        }
+    }
+
+    const fn disabled() -> Self {
+        Self {
+            cancel: None,
+            worker: None,
+        }
+    }
+
+    fn finish(mut self) {
+        if let Some(cancel) = self.cancel.take() {
+            let _ = cancel.send(());
+        }
+        if let Some(worker) = self.worker.take() {
+            let _ = worker.join();
         }
     }
 }
@@ -71,5 +126,10 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(!json_requested(&arguments));
+    }
+
+    #[test]
+    fn disabled_progress_finishes_cleanly() {
+        DelayedProgress::disabled().finish();
     }
 }

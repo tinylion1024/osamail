@@ -122,6 +122,9 @@ Global options may appear before or after a subcommand:
 ```
 
 `--quiet` does not hide errors and does not suppress requested JSON.
+For interactive `recent`, `unread`, `search`, and `show` commands, OsaMail
+prints a short status message to stderr only when Apple Mail takes longer than
+one second. Piped output, JSON, and quiet mode remain unchanged.
 
 ### Diagnose the environment
 
