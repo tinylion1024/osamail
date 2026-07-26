@@ -1,72 +1,97 @@
-# OsaMail
+# OsaMail — Apple Mail CLI for macOS
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-A tiny, scriptable CLI for Apple Mail, powered by `osascript`.
+Read, search, automate, and send Apple Mail from the terminal.
 
-OsaMail controls accounts already configured in Apple Mail. It does not connect
-directly to Gmail, iCloud Mail, Exchange, IMAP, SMTP, or any other email
-provider.
+OsaMail is an open-source, local-first Apple Mail CLI for macOS. It controls the
+accounts already configured in Mail through Apple's built-in `osascript`, so
+you can automate email without setting up IMAP, SMTP, OAuth, or provider API
+credentials.
 
-```text
-$ osamail unread --count
-12
-
-$ osamail recent --limit 2
-RECEIVED              STATUS   SENDER                        SUBJECT
-2026-07-26T02:30:00Z  unread   GitHub <noreply@github.com>   New pull request
-  ref: eyJ2ZXJzaW9uIjoxLC...
-2026-07-25T18:04:00Z  read     Build service                 Release complete
-  ref: eyJ2ZXJzaW9uIjoxLC...
+```bash
+brew install tinylion1024/tap/osamail
+osamail doctor
+osamail unread --titles
 ```
 
-The output above illustrates the terminal format. Account names, messages, and
-opaque references come from the user's Apple Mail data.
+OsaMail can list, search, show, open, and send plain-text messages. It provides
+clean terminal output for people and structured JSON for scripts. OsaMail is
+not a standalone email client and does not connect directly to Gmail, iCloud
+Mail, Exchange, or any other provider.
 
-## Features
+## Why OsaMail?
 
-- Diagnose the local Mail and macOS Automation environment.
-- List Apple Mail accounts without reading credentials.
-- List recent or unread messages without loading message bodies.
-- Print only message subjects when a compact title list is enough.
-- Search sender and subject metadata, with opt-in body search.
-- Show a message as terminal text or structured JSON.
-- Open a referenced message in Apple Mail.
-- Send plain-text messages, with a no-send dry-run mode.
-- Emit human-readable output for interactive use and JSON for scripts.
+| Need | What OsaMail provides |
+| --- | --- |
+| Check email without leaving the terminal | Unread counts, compact subject lists, and recent messages |
+| Automate an existing Apple Mail setup | Stable CLI commands and JSON output |
+| Avoid another credentials flow | Uses accounts already authenticated in Apple Mail |
+| Keep email access local | No telemetry, private Mail database access, or OsaMail network requests |
+| Stay in control before sending | Plain-text send with a no-send `--dry-run` mode |
 
-OsaMail is local-first, has no telemetry, and makes no network requests of its
-own. Apple Mail remains responsible for communicating with email providers.
+OsaMail is designed for developers, automation workflows, and macOS users who
+want a small command-line interface instead of another email application.
 
-## Requirements
+## 30-second quick start
 
-- macOS with `/System/Applications/Mail.app` and `/usr/bin/osascript`.
-- At least one account configured in Apple Mail for account or message commands.
-- Automation permission for the terminal or application that invokes OsaMail.
-- Rust 1.85 or newer only when building from source.
+Configure at least one account in Apple Mail, then run:
 
-OsaMail 0.2.0 has been developed and live-tested against Mail 16.0 on macOS
-15.3. Automation authorization remains specific to the terminal or application
-that invokes OsaMail.
+```bash
+# Confirm that macOS, Mail, and Automation permission are ready
+osamail doctor
 
-## Installation
+# See unread subjects without loading message bodies
+osamail unread --titles
 
-### Homebrew
+# Search subject and sender metadata
+osamail search "invoice" --titles
+
+# Get structured output for a script
+osamail recent --limit 5 --json
+```
+
+Message lists return an opaque `ref`. Use that single shell-safe value to show
+the message in the terminal or open it in Apple Mail:
+
+```bash
+osamail show <ref>
+osamail open <ref>
+```
+
+## Choose a command
+
+| Goal | Command |
+| --- | --- |
+| Check the environment | `osamail doctor` |
+| List configured Mail accounts | `osamail accounts` |
+| List recent messages | `osamail recent` |
+| List unread messages | `osamail unread` |
+| Count unread messages | `osamail unread --count` |
+| Print only subjects | `osamail unread --titles` |
+| Search messages | `osamail search "query"` |
+| Read a message in the terminal | `osamail show <ref>` |
+| Open a message in Apple Mail | `osamail open <ref>` |
+| Validate a message without sending | `osamail send ... --dry-run` |
+| Send a plain-text message | `osamail send ...` |
+
+Run `osamail <command> --help` for the authoritative option list.
+
+## Install
+
+### Homebrew (recommended)
 
 ```bash
 brew install tinylion1024/tap/osamail
 ```
 
-Version tags publish a GitHub Release and automatically update the formula in
-the Homebrew tap after the release archive passes its build and installation
-checks. Maintainers can follow
-[the Homebrew publishing guide](docs/homebrew.md) for setup and recovery details.
+The public tap is updated automatically after a versioned GitHub Release passes
+its build and installation checks.
 
 ### GitHub Release
 
-After a release is published, download
-`osamail-v0.2.0-universal-apple-darwin.tar.gz` from the repository's Releases
-page, verify its adjacent SHA-256 file, and install the binary:
+Download the universal macOS archive and adjacent SHA-256 file from
+[GitHub Releases](https://github.com/tinylion1024/osamail/releases):
 
 ```bash
 tar -xzf osamail-v0.2.0-universal-apple-darwin.tar.gz
@@ -74,191 +99,94 @@ install -m 0755 osamail-v0.2.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
-On Apple Silicon, `/opt/homebrew/bin` is another common user-managed destination.
-Use a directory already present in your `PATH`; administrator access may be
-required for `/usr/local/bin`.
+The release binary supports Apple Silicon (`arm64`) and Intel (`x86_64`) Macs.
+Use a destination already present in your `PATH`; `/opt/homebrew/bin` is another
+common choice on Apple Silicon.
 
 ### Cargo
 
-After version 0.2.0 is published to crates.io:
+After version 0.2.0 is available on crates.io:
 
 ```bash
 cargo install osamail
 ```
 
-To install the current checkout without waiting for a registry release:
+To install the current checkout:
 
 ```bash
 cargo install --path .
 ```
 
-No release has been published by the repository automation during development.
+### Requirements
 
-## Quick start
+- macOS with Apple Mail and `/usr/bin/osascript`.
+- At least one account configured in Apple Mail for account or message commands.
+- Automation permission for the terminal, IDE, or application running OsaMail.
+- Rust 1.85 or newer only when building from source.
 
-Configure the desired accounts in Apple Mail first, then run:
+OsaMail 0.2.0 has been developed and live-tested against Mail 16.0 on macOS
+15.3.
 
-```bash
-osamail doctor
-osamail accounts
-osamail unread --count
-osamail recent --limit 5
-osamail search "GitHub"
-osamail show <ref>
-osamail open <ref>
-```
+## Common workflows
 
-`recent`, `unread`, and `search` return an opaque `ref` for each message. Pass
-that single shell-safe value to `show` or `open`.
+### Read less, faster
 
-## Commands
-
-Global options may appear before or after a subcommand:
-
-```text
---json               Emit structured JSON
---timeout <SECONDS>  Override the command-specific timeout (1-3600)
---quiet              Suppress successful human-readable output
-```
-
-`--quiet` does not hide errors and does not suppress requested JSON.
-For interactive `recent`, `unread`, `search`, and `show` commands, OsaMail
-prints a short status message to stderr only when Apple Mail takes longer than
-one second. Piped output, JSON, and quiet mode remain unchanged.
-
-### Diagnose the environment
+Use `--titles` when subjects are enough. OsaMail asks Mail only for the minimum
+properties needed to filter and sort results, then prints one subject per line:
 
 ```bash
-osamail doctor
-osamail doctor --json
-osamail --timeout 30 doctor
-```
-
-The check covers macOS, `/usr/bin/osascript`, Mail.app, Mail automation, and the
-configured account count.
-
-### List accounts
-
-```bash
-osamail accounts
-osamail accounts --json
-```
-
-Account output includes only the account name, configured email addresses, and
-enabled state. It never includes passwords, tokens, or server credentials.
-
-### List recent messages
-
-```bash
-osamail recent
-osamail recent --limit 10
 osamail recent --titles
-osamail recent --account "Personal"
-osamail recent --mailbox "INBOX"
-osamail recent --account "Personal" --mailbox "Receipts" --json
+osamail unread --titles
+osamail search "release" --titles
 ```
 
-The default limit is 10; the accepted range is 1 through 200. Message bodies are
-not loaded.
+Listing commands do not load message bodies. `--titles` cannot be combined with
+`unread --count`.
 
-### List or count unread messages
+### Filter recent or unread mail
 
 ```bash
-osamail unread
-osamail unread --limit 20
-osamail unread --titles
-osamail unread --account "Personal"
+osamail recent --limit 20
+osamail recent --account "Personal"
 osamail unread --mailbox "INBOX"
-osamail unread --count
 osamail unread --count --json
 ```
 
-Human-readable `--count` output is one integer.
+The default list limit is 10; the accepted range is 1 through 200. Account names
+must match Apple Mail exactly. Mailbox names may be localized or nested.
 
-### Search messages
+### Search Apple Mail
 
 ```bash
 osamail search "GitHub"
-osamail search "invoice" --account "Personal"
-osamail search "release" --limit 20
-osamail search "release" --titles
-osamail search "security" --unread
 osamail search "notice" --from "alerts@example.com"
 osamail search "quarterly" --subject "report"
+osamail search "security" --unread
 osamail search "exact body text" --body
 ```
 
-The positional query searches subject and sender by default. `--from` and
-`--subject` add filters. `--body` also searches Mail's message content and can
-be substantially slower; OsaMail does not transfer every body to Rust for
-searching. `--titles` asks Mail for the minimum properties needed to filter and
-sort the results, then prints one subject per line. In JSON mode it returns
-`data.titles` and `data.count`.
+The positional query searches subject and sender metadata. `--from` and
+`--subject` add filters. Body search is opt-in because large mailboxes can be
+substantially slower.
 
-### Show a message
+### Show or open a message
 
 ```bash
 osamail show <ref>
-osamail show <ref> --body
 osamail show <ref> --headers
 osamail show <ref> --max-body-bytes 131072
 osamail show <ref> --json
-```
-
-The human view includes the body by default and truncates it at 65,536 bytes.
-`--body` is accepted when a caller wants to make that default explicit. Use
-`--max-body-bytes` to change the human display limit. JSON keeps the full body.
-`--headers` requests Mail's raw textual headers. Showing a message does not
-intentionally change its read status or load attachments.
-
-### Open a message in Mail
-
-```bash
 osamail open <ref>
 ```
 
-OsaMail validates the reference, asks Mail to open the matching message, and
-activates Mail. Window focus and selection remain subject to Mail's current UI
-state.
+The human view includes the body by default and truncates it at 65,536 bytes.
+JSON keeps the full body. Showing a message does not intentionally change its
+read status or load attachments. References are locators, not durable message
+IDs; get a fresh `ref` after messages move or accounts change.
 
-### Send plain text
+### Send safely
 
-The following command sends a real message:
-
-```bash
-osamail send \
-  --to user@example.com \
-  --subject "Hello" \
-  --body "Test message"
-```
-
-Repeat recipient flags and select an exact Apple Mail account when needed:
-
-```bash
-osamail send \
-  --to first@example.com \
-  --to second@example.com \
-  --cc copy@example.com \
-  --bcc audit@example.com \
-  --account "Personal" \
-  --subject "Status" \
-  --body "Complete"
-```
-
-Read the body from a file or standard input:
-
-```bash
-osamail send \
-  --to user@example.com \
-  --subject "Hello" \
-  --body-file message.txt
-
-printf '%s\n' 'Test message' \
-  | osamail send --to user@example.com --subject "Hello" --stdin
-```
-
-`--body`, `--body-file`, and `--stdin` are mutually exclusive. Validate
-recipients and body input without creating or sending a message:
+Validate recipients and body input without creating or sending a message:
 
 ```bash
 osamail send \
@@ -268,221 +196,140 @@ osamail send \
   --dry-run
 ```
 
-When `--account` is present, even dry-run checks that an enabled account with
-that exact name exists and therefore requires Mail automation permission. A
-successful real send means Apple Mail accepted the request; it is not proof of
-remote delivery.
+Remove `--dry-run` only when you intend to send. Repeat `--to`, `--cc`, or
+`--bcc` for multiple recipients, select an exact account with `--account`, and
+optionally provide a body with one of `--body`, `--body-file`, or `--stdin`.
 
-Run `osamail <command> --help` for the authoritative option list.
+A successful real send means Apple Mail accepted the request; it does not prove
+remote delivery. Default and CI tests never send real email.
 
-## JSON output
+## JSON and shell automation
 
-`--json` writes exactly one JSON value to stdout. Successful responses use
-`{"ok":true,"data":...}`; failures use
-`{"ok":false,"error":{"code":...,"message":...}}` and go to stderr. Errors
-include a `hint` when OsaMail can suggest a concrete recovery step, such as
-listing valid accounts or refreshing a stale message reference.
+Add `--json` to any command for exactly one JSON value. Successful output uses
+`{"ok":true,"data":...}` on stdout. Errors use
+`{"ok":false,"error":{"code":...,"message":...}}` on stderr and include a
+`hint` when OsaMail can suggest a concrete recovery step.
 
-For example, a successful no-send dry-run produces:
+```bash
+# Extract subjects
+osamail search "invoice" --json | jq -r '.data.messages[].subject'
 
-```json
-{
-  "ok": true,
-  "data": {
-    "sent": false,
-    "dry_run": true,
-    "account": null,
-    "recipient_count": 1
-  }
-}
+# Use a count in another command
+unread_count="$(osamail unread --count --json | jq -r '.data.count')"
 ```
 
-Message-list data has this shape:
+Global options can appear before or after a subcommand:
 
-```json
-{
-  "ok": true,
-  "data": {
-    "messages": [
-      {
-        "ref": "opaque-reference",
-        "account": "Personal",
-        "mailbox": "INBOX",
-        "sender": "GitHub <noreply@github.com>",
-        "subject": "New pull request",
-        "received_at": "2026-07-26T02:30:00.000Z",
-        "unread": true
-      }
-    ],
-    "count": 1
-  }
-}
+```text
+--json               Emit structured JSON
+--timeout <SECONDS>  Override the command timeout (1-3600)
+--quiet              Suppress successful human-readable output
 ```
+
+`--quiet` never hides errors or explicitly requested JSON. In an interactive
+terminal, slow read commands print one delayed status message to stderr. Piped,
+JSON, and quiet output remain unchanged.
 
 Field names form the 0.2.0 machine-readable interface. Optional Mail values may
 be `null` or omitted depending on the response model.
 
-## Shell pipelines
-
-Extract subjects with `jq`:
-
-```bash
-osamail search "invoice" --json \
-  | jq -r '.data.messages[].subject'
-```
-
-Count unread mail as a number:
-
-```bash
-osamail unread --count --json \
-  | jq -r '.data.count'
-```
-
-Keep JSON stdout separate from diagnostics:
-
-```bash
-if ! result="$(osamail recent --json)"; then
-  printf '%s\n' "OsaMail failed" >&2
-  exit 1
-fi
-printf '%s\n' "$result" | jq '.data.messages'
-```
-
 ## macOS Automation permission
 
-The first live command may cause macOS to request permission for the invoking
-terminal or application to control Mail. OsaMail cannot grant this permission.
+The first live command may ask for permission to control Mail. If access is
+denied:
 
-If access is denied or the command cannot proceed:
+1. Open **System Settings → Privacy & Security → Automation**.
+2. Allow the terminal, IDE, or application running OsaMail to control **Mail**.
+3. Run `osamail doctor` again.
 
-1. Open **System Settings**.
-2. Open **Privacy & Security**.
-3. Open **Automation**.
-4. Allow the invoking terminal application to control **Mail**.
-5. Run `osamail doctor` again.
-
-Authorization is associated with the invoking application, so a different
-terminal, IDE, or packaged launcher may need separate consent.
-
-## Apple Mail accounts
-
-OsaMail does not maintain account configuration. Add, remove, enable, and
-authenticate accounts in Apple Mail. Values passed through `--account` must
-match the Mail account name exactly; OsaMail does not silently fall back to a
-different account.
-
-Mailbox names come from Mail and may be localized or nested. A name such as
-`INBOX` is an example, not a universal mailbox name.
+Permission belongs to the invoking application. Switching terminals or running
+OsaMail from an IDE may trigger a separate prompt.
 
 ## Security and privacy
 
-Rust serializes each automation request into an unpredictable temporary JSON
-file with mode `0600`. Only the file path is passed as business input to the
-constant, embedded JXA source. User input is never interpolated into JXA,
-AppleScript, or a shell command.
+OsaMail uses the boundary:
 
-OsaMail:
-
-- invokes the absolute `/usr/bin/osascript` path without `sh -c`;
-- captures subprocess output, checks its status, and enforces a timeout;
-- removes the request file when the runner completes normally or with an error;
-- does not read account passwords or access Mail's private database;
-- does not add telemetry or make network requests; and
-- does not send mail during default tests.
-
-See [SECURITY.md](SECURITY.md) for the data-handling model and vulnerability
-reporting process.
-
-## Known limitations
-
-- Real commands require macOS, Apple Mail, configured accounts, and Automation
-  permission. Help and version output remain portable.
-- Live read-only validation covered `doctor`, `accounts`, recent and unread
-  listing, metadata search, `show`, and `unread --count` on Mail 16.0. `open`
-  was validated with an already-read message. Real sending was deliberately not
-  performed; `send --dry-run` covered input and JSON behavior without creating
-  an outgoing message.
-- Opaque references encode a versioned Mail locator. They are safe as one shell
-  argument but are not durable identifiers; mailbox moves, account changes, or
-  Mail database changes can invalidate them.
-- `open` relies on Mail's scripting behavior. Mail may open the message without
-  focusing the expected viewer or preserving a particular selection.
-- Mail provides message content as text/rich text. OsaMail does not render HTML,
-  load attachments, or expose raw MIME.
-- Body search and large mailboxes can be slow. Increase `--timeout` when needed.
-- Version 0.2.0 does not support attachments, reply, forward, delete, move,
-  archive, read-state changes, flags, rules, notifications, templates, HTML
-  composition, signing, or encryption.
-- The release is not code-signed or notarized.
-
-Resolved external validation issues are recorded in [BLOCKERS.md](BLOCKERS.md).
-
-## Development
-
-Clone the repository and build with stable Rust:
-
-```bash
-git clone https://github.com/tinylion1024/osamail.git
-cd osamail
-cargo build
-cargo run -- --help
+```text
+Rust → /usr/bin/osascript → embedded JXA → Apple Mail
 ```
 
-The automation boundary is Rust -> `/usr/bin/osascript` -> embedded JXA ->
-Apple Mail. See [the architecture guide](docs/architecture.md) and
-[the Mail automation investigation](docs/apple-mail-automation.md).
+Every request is serialized into an unpredictable temporary JSON file with mode
+`0600`. User input is never interpolated into JXA, AppleScript, or a shell
+command.
 
-## Testing
+- No passwords, tokens, or server credentials are read.
+- No private Apple Mail database is accessed.
+- No telemetry or direct network requests are added by OsaMail.
+- `/usr/bin/osascript` is invoked directly without `sh -c`.
+- Temporary request files are removed after completion or failure.
 
-Default checks use mocks and never send real email:
+Apple Mail remains responsible for communication with email providers. See
+[SECURITY.md](SECURITY.md) for the complete data-handling model.
+
+## Frequently asked questions
+
+### Does OsaMail work with Gmail, iCloud Mail, or Exchange?
+
+Yes, when the account is already configured and working in Apple Mail. OsaMail
+controls Mail; it does not connect directly to the provider.
+
+### Does OsaMail need my email password?
+
+No. OsaMail never reads account passwords, OAuth tokens, or server credentials.
+
+### Is OsaMail an IMAP or SMTP client?
+
+No. It is a macOS-native command-line interface over Apple Mail automation.
+
+### Does listing or showing email mark it as read?
+
+Listing and default metadata search are read-only and do not load bodies.
+`show` does not intentionally change read state. `open` hands the message to
+Apple Mail, so the resulting UI behavior is controlled by Mail.
+
+### Can OsaMail mark messages as read?
+
+Not in version 0.2.0. Read-state changes and other mailbox mutations are outside
+the current command set.
+
+### Does OsaMail work on Linux or Windows?
+
+Mail operations require macOS and Apple Mail. `--help` and `--version` remain
+portable.
+
+## Current limits
+
+OsaMail does not currently support attachments, HTML rendering or composition,
+reply, forward, delete, move, archive, read-state changes, flags, rules,
+background notifications, signing, or encryption. Release artifacts are not
+code-signed or notarized.
+
+`open` and window focus depend on Apple Mail's scripting and current UI state.
+Large-mailbox and body searches may require a larger `--timeout`.
+
+## Project
+
+- [Contributing](CONTRIBUTING.md)
+- [Architecture](docs/architecture.md)
+- [Release guide](docs/releasing.md)
+- [Homebrew publishing](docs/homebrew.md)
+- [Changelog](CHANGELOG.md)
+- [Security policy](SECURITY.md)
+
+Build and test locally:
 
 ```bash
-cargo fmt --all -- --check
-cargo clippy --all-targets --all-features -- -D warnings
-cargo test --all-features
-cargo test --doc
+cargo build
 ./scripts/check.sh
 ./scripts/smoke-test.sh
 ```
 
-On a macOS host with Automation permission, run the ignored, read-only
-integration checks explicitly:
-
-```bash
-OSAMAIL_INTEGRATION=1 cargo test --test macos_integration -- --ignored
-```
-
-No send integration test runs without both `OSAMAIL_INTEGRATION=1` and
-`OSAMAIL_ALLOW_SEND_TEST=1`. Do not enable send testing in CI. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the full validation policy.
-
-## Releasing
-
-Maintainers must run the complete local gate, update the changelog, publish the
-crate, and create a `v*` tag. The GitHub release workflow builds the release and
-updates the Homebrew tap automatically. No development command performs an
-actual publication.
-
-See [docs/releasing.md](docs/releasing.md) for the ordered checklist and
-[docs/homebrew.md](docs/homebrew.md) for tap maintenance.
-
-## Roadmap
-
-Possible post-0.2.0 work:
-
-- code signing and notarization;
-- stronger integration coverage across supported macOS and Mail versions;
-- measured improvements for large-mailbox queries; and
-- selected mail operations only after their safety and scripting behavior are
-  verified.
-
-Attachments, reply/forward, mutations, and background behavior are not promised.
+Live integration tests are read-only unless both explicit send-test gates are
+enabled. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full policy.
 
 ## License
 
 OsaMail is available under the [MIT License](LICENSE).
-
-## Independent project
 
 OsaMail is an independent open-source project and is not affiliated with or
 endorsed by Apple Inc. Apple, Apple Mail, and macOS are trademarks of Apple Inc.

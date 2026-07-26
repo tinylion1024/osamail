@@ -18,6 +18,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Add actionable recovery hints for invalid accounts, mailbox names, and stale
   message references in both human-readable and JSON errors.
 
+### Changed
+
+- Restructure the English and Simplified Chinese READMEs around a faster
+  install-to-first-result path, goal-based command discovery, and concise FAQ
+  answers.
+
 ## [0.1.2] - 2026-07-26
 
 ### Fixed
