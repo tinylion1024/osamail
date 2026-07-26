@@ -14,7 +14,7 @@ use crate::{
         AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, CountOutput,
         DoctorAutomationData, DoctorCheck, DoctorReport, ListMessagesRequest, ListMode,
         MessageDetail, MessageSummary, MessagesData, MessagesOutput, OpenMessageRequest,
-        OpenResult, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest,
+        OpenResult, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
     },
     output, reference,
 };
@@ -168,6 +168,7 @@ fn list_recent(
         ListMessagesRequest {
             mode: ListMode::Recent,
             limit: args.limit,
+            titles_only: args.titles,
             account: args.account.clone(),
             mailbox: args.mailbox.clone(),
             count_only: false,
@@ -190,6 +191,7 @@ fn unread(
     let request = ListMessagesRequest {
         mode: ListMode::Unread,
         limit: args.limit,
+        titles_only: args.titles,
         account: args.account.clone(),
         mailbox: args.mailbox.clone(),
         count_only: args.count,
@@ -239,6 +241,7 @@ fn search(
         ListMessagesRequest {
             mode: ListMode::Search,
             limit: args.limit,
+            titles_only: args.titles,
             account: args.account.clone(),
             mailbox: args.mailbox.clone(),
             count_only: false,
@@ -258,12 +261,28 @@ fn list_messages(
     timeout: Duration,
     request: ListMessagesRequest,
 ) -> Result<(), OsaMailError> {
+    let titles_only = request.titles_only;
     let data: MessagesData = run_automation(
         runner,
         Script::ListMessages,
         &AutomationRequest::ListMessages(request),
         timeout,
     )?;
+    if titles_only {
+        return if cli.json {
+            output::write_json_success(
+                writer,
+                TitlesOutput {
+                    count: data.count,
+                    titles: data.titles,
+                },
+            )
+        } else if !cli.quiet {
+            output::write_titles(writer, &data.titles)
+        } else {
+            Ok(())
+        };
+    }
     let mut messages = Vec::with_capacity(data.messages.len());
     for raw in data.messages {
         messages.push(summary_from_raw(raw)?);
@@ -532,6 +551,48 @@ mod tests {
         execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
 
         assert_eq!(String::from_utf8(output).unwrap(), "9\n");
+    }
+
+    #[test]
+    fn unread_titles_requests_minimal_output() {
+        let cli = Cli::try_parse_from(["osamail", "unread", "--titles"]).unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {
+                "messages": [],
+                "titles": ["First subject", "第二封"],
+                "count": 2
+            }
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        assert_eq!(
+            String::from_utf8(output).unwrap(),
+            "First subject\n第二封\n"
+        );
+        assert_eq!(runner.requests.lock().unwrap()[0]["titles_only"], true);
+    }
+
+    #[test]
+    fn search_titles_json_is_structured() {
+        let cli =
+            Cli::try_parse_from(["osamail", "search", "release", "--titles", "--json"]).unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {
+                "titles": ["Release complete"],
+                "count": 1
+            }
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["titles"][0], "Release complete");
+        assert_eq!(value["data"]["count"], 1);
     }
 
     #[test]

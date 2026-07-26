@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Add `--titles` to recent, unread, and search commands for minimal
+  subject-only output and reduced Apple Mail property reads.
+
 ## [0.1.2] - 2026-07-26
 
 ### Fixed

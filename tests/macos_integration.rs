@@ -57,3 +57,11 @@ fn unread_count() {
         assert_success(output);
     }
 }
+
+#[test]
+#[ignore = "requires an authorized local Apple Mail account"]
+fn unread_titles() {
+    if let Some(output) = run_read_only(&["unread", "--limit", "1", "--titles"]) {
+        assert_success(output);
+    }
+}

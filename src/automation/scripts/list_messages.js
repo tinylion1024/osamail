@@ -173,32 +173,33 @@ function messageRows(mailboxes, request) {
     var count = 0;
     var needsUnread = request.mode === "unread" || Boolean(request.unread);
     var needsOutput = !request.count_only;
+    var needsRows = needsOutput && !request.titles_only;
 
     for (var boxIndex = 0; boxIndex < mailboxes.length; boxIndex += 1) {
         var source = bodySearchSource(mailboxes[boxIndex].messages, request);
         var dates = needsOutput ? asArray(source.dateReceived()) : [];
         var readStatuses =
-            needsOutput || needsUnread ? asArray(source.readStatus()) : [];
+            needsRows || needsUnread ? asArray(source.readStatus()) : [];
         var senders =
-            needsOutput || request.from || request.query
+            needsRows || request.from || request.query
                 ? asArray(source.sender())
                 : [];
         var subjects =
             needsOutput || request.subject || request.query
                 ? asArray(source.subject())
                 : [];
-        var messageIds = needsOutput ? asArray(source.id()) : [];
-        var internetMessageIds = needsOutput
+        var messageIds = needsRows ? asArray(source.id()) : [];
+        var internetMessageIds = needsRows
             ? asArray(source.messageId())
             : [];
         var mailboxNames =
-            needsOutput && !request.mailbox
+            needsRows && !request.mailbox
                 ? asArray(source.mailbox.name())
                 : [];
-        var accountNames = needsOutput || request.account
+        var accountNames = needsRows || request.account
             ? asArray(source.mailbox.account.name())
             : [];
-        var selectedMailboxPath = request.mailbox
+        var selectedMailboxPath = needsRows && request.mailbox
             ? mailboxPath(mailboxes[boxIndex])
             : null;
         var sourceCount = Math.max(
@@ -247,6 +248,13 @@ function messageRows(mailboxes, request) {
             }
 
             var receivedAt = optionalDate(dates[messageIndex]);
+            if (request.titles_only) {
+                candidates.push({
+                    _received_time: receivedAt ? Date.parse(receivedAt) : 0,
+                    subject: subject,
+                });
+                continue;
+            }
             candidates.push({
                 _received_time: receivedAt ? Date.parse(receivedAt) : 0,
                 locator: {
@@ -274,8 +282,13 @@ function messageRows(mailboxes, request) {
     candidates = candidates.slice(0, Number(request.limit));
 
     var rows = [];
+    var titles = [];
     for (var index = 0; index < candidates.length; index += 1) {
         var candidate = candidates[index];
+        if (request.titles_only) {
+            titles.push(candidate.subject);
+            continue;
+        }
         rows.push({
             locator: candidate.locator,
             sender: candidate.sender,
@@ -284,7 +297,7 @@ function messageRows(mailboxes, request) {
             unread: candidate.unread,
         });
     }
-    return { rows: rows, count: count };
+    return { rows: rows, titles: titles, count: count };
 }
 
 function run(argv) {
@@ -332,7 +345,11 @@ function run(argv) {
         if (request.count_only) {
             return response({ messages: [], count: result.count });
         }
-        return response({ messages: result.rows, count: result.count });
+        return response({
+            messages: result.rows,
+            titles: result.titles,
+            count: result.count,
+        });
     } catch (error) {
         return classify(error);
     }

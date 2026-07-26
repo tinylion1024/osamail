@@ -28,6 +28,7 @@ opaque references come from the user's Apple Mail data.
 - Diagnose the local Mail and macOS Automation environment.
 - List Apple Mail accounts without reading credentials.
 - List recent or unread messages without loading message bodies.
+- Print only message subjects when a compact title list is enough.
 - Search sender and subject metadata, with opt-in body search.
 - Show a message as terminal text or structured JSON.
 - Open a referenced message in Apple Mail.
@@ -148,6 +149,7 @@ enabled state. It never includes passwords, tokens, or server credentials.
 ```bash
 osamail recent
 osamail recent --limit 10
+osamail recent --titles
 osamail recent --account "Personal"
 osamail recent --mailbox "INBOX"
 osamail recent --account "Personal" --mailbox "Receipts" --json
@@ -161,6 +163,7 @@ not loaded.
 ```bash
 osamail unread
 osamail unread --limit 20
+osamail unread --titles
 osamail unread --account "Personal"
 osamail unread --mailbox "INBOX"
 osamail unread --count
@@ -175,6 +178,7 @@ Human-readable `--count` output is one integer.
 osamail search "GitHub"
 osamail search "invoice" --account "Personal"
 osamail search "release" --limit 20
+osamail search "release" --titles
 osamail search "security" --unread
 osamail search "notice" --from "alerts@example.com"
 osamail search "quarterly" --subject "report"
@@ -184,7 +188,9 @@ osamail search "exact body text" --body
 The positional query searches subject and sender by default. `--from` and
 `--subject` add filters. `--body` also searches Mail's message content and can
 be substantially slower; OsaMail does not transfer every body to Rust for
-searching.
+searching. `--titles` asks Mail for the minimum properties needed to filter and
+sort the results, then prints one subject per line. In JSON mode it returns
+`data.titles` and `data.count`.
 
 ### Show a message
 

@@ -121,6 +121,7 @@ pub enum ListMode {
 pub struct ListMessagesRequest {
     pub mode: ListMode,
     pub limit: u16,
+    pub titles_only: bool,
     pub account: Option<String>,
     pub mailbox: Option<String>,
     pub count_only: bool,
@@ -179,7 +180,10 @@ pub struct AccountsData {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessagesData {
+    #[serde(default)]
     pub messages: Vec<RawMessageSummary>,
+    #[serde(default)]
+    pub titles: Vec<String>,
     pub count: usize,
 }
 
@@ -208,6 +212,12 @@ pub struct AccountsOutput {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessagesOutput {
     pub messages: Vec<MessageSummary>,
+    pub count: usize,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TitlesOutput {
+    pub titles: Vec<String>,
     pub count: usize,
 }
 

@@ -65,6 +65,9 @@ pub struct ListArgs {
     /// Maximum number of messages to return.
     #[arg(long, default_value_t = 10, value_parser = parse_limit)]
     pub limit: u16,
+    /// Print only message subjects.
+    #[arg(long)]
+    pub titles: bool,
     /// Restrict results to an exact Apple Mail account name.
     #[arg(long)]
     pub account: Option<String>,
@@ -81,6 +84,9 @@ pub struct UnreadArgs {
     /// Maximum number of messages to return.
     #[arg(long, default_value_t = 10, value_parser = parse_limit)]
     pub limit: u16,
+    /// Print only message subjects.
+    #[arg(long, conflicts_with = "count")]
+    pub titles: bool,
     /// Restrict results to an exact Apple Mail account name.
     #[arg(long)]
     pub account: Option<String>,
@@ -102,6 +108,9 @@ pub struct SearchArgs {
     /// Maximum number of messages to return.
     #[arg(long, default_value_t = 10, value_parser = parse_limit)]
     pub limit: u16,
+    /// Print only matching message subjects.
+    #[arg(long)]
+    pub titles: bool,
     /// Return only unread matches.
     #[arg(long)]
     pub unread: bool,
@@ -232,6 +241,11 @@ mod tests {
     fn rejects_limit_outside_range() {
         assert!(Cli::try_parse_from(["osamail", "recent", "--limit", "0"]).is_err());
         assert!(Cli::try_parse_from(["osamail", "recent", "--limit", "201"]).is_err());
+    }
+
+    #[test]
+    fn unread_titles_conflicts_with_count() {
+        assert!(Cli::try_parse_from(["osamail", "unread", "--titles", "--count"]).is_err());
     }
 
     #[test]

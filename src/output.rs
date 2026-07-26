@@ -126,6 +126,17 @@ pub fn write_messages(
     Ok(())
 }
 
+pub fn write_titles(writer: &mut dyn Write, titles: &[String]) -> Result<(), OsaMailError> {
+    if titles.is_empty() {
+        writeln!(writer, "No messages found.")?;
+        return Ok(());
+    }
+    for title in titles {
+        writeln!(writer, "{title}")?;
+    }
+    Ok(())
+}
+
 pub fn write_message_detail(
     writer: &mut dyn Write,
     message: &MessageDetail,
@@ -238,5 +249,12 @@ mod tests {
     fn body_truncation_preserves_utf8() {
         assert_eq!(truncate_bytes("a🚀b", 4), "a");
         assert_eq!(truncate_bytes("a🚀b", 5), "a🚀");
+    }
+
+    #[test]
+    fn titles_are_one_per_line() {
+        let mut bytes = Vec::new();
+        write_titles(&mut bytes, &["First".to_owned(), "第二封".to_owned()]).unwrap();
+        assert_eq!(String::from_utf8(bytes).unwrap(), "First\n第二封\n");
     }
 }

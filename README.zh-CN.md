@@ -27,6 +27,7 @@ Apple Mail 数据。
 - 检查本机 Mail 与 macOS 自动化环境。
 - 列出 Apple Mail 账户，且不读取凭据。
 - 在不加载邮件正文的情况下列出最近邮件或未读邮件。
+- 只需要紧凑列表时，仅输出邮件主题。
 - 按发件人和主题元数据搜索邮件，可选择同时搜索正文。
 - 在终端中以文本或结构化 JSON 显示邮件。
 - 在 Apple Mail 中打开指定邮件。
@@ -145,6 +146,7 @@ osamail accounts --json
 ```bash
 osamail recent
 osamail recent --limit 10
+osamail recent --titles
 osamail recent --account "Personal"
 osamail recent --mailbox "INBOX"
 osamail recent --account "Personal" --mailbox "Receipts" --json
@@ -157,6 +159,7 @@ osamail recent --account "Personal" --mailbox "Receipts" --json
 ```bash
 osamail unread
 osamail unread --limit 20
+osamail unread --titles
 osamail unread --account "Personal"
 osamail unread --mailbox "INBOX"
 osamail unread --count
@@ -171,6 +174,7 @@ osamail unread --count --json
 osamail search "GitHub"
 osamail search "invoice" --account "Personal"
 osamail search "release" --limit 20
+osamail search "release" --titles
 osamail search "security" --unread
 osamail search "notice" --from "alerts@example.com"
 osamail search "quarterly" --subject "report"
@@ -179,7 +183,8 @@ osamail search "exact body text" --body
 
 位置参数默认搜索主题和发件人。`--from` 和 `--subject` 可增加过滤条件。
 `--body` 还会搜索 Mail 中的邮件正文，因此可能明显变慢；OsaMail 不会为了搜索
-而把所有正文传输到 Rust 进程。
+而把所有正文传输到 Rust 进程。`--titles` 会让 Mail 只读取筛选和排序所需的最少
+属性，然后每行输出一个主题；JSON 模式返回 `data.titles` 和 `data.count`。
 
 ### 显示邮件
 
