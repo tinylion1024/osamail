@@ -261,6 +261,8 @@ mod tests {
 
     use super::*;
 
+    const FIXTURE_TIMEOUT: Duration = Duration::from_secs(10);
+
     fn executable_fixture(contents: &str) -> (tempfile::TempDir, PathBuf) {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("fake-osascript");
@@ -303,7 +305,7 @@ mod tests {
             .execute_platform(
                 Script::Doctor,
                 &json!({"secret":"not-in-args"}),
-                Duration::from_secs(2),
+                FIXTURE_TIMEOUT,
             )
             .unwrap();
         assert_eq!(response["data"]["count"], 1);
@@ -326,7 +328,7 @@ mod tests {
             OsascriptRunner::with_program_and_temp_directory(path, request_directory.path());
 
         runner
-            .execute_platform(Script::Doctor, &json!({}), Duration::from_secs(2))
+            .execute_platform(Script::Doctor, &json!({}), FIXTURE_TIMEOUT)
             .unwrap();
 
         assert!(
@@ -343,7 +345,7 @@ mod tests {
     fn nonzero_status_is_a_script_failure() {
         let (_directory, path) = executable_fixture("#!/bin/sh\nexit 9\n");
         let error = OsascriptRunner::with_program(path)
-            .execute_platform(Script::Doctor, &json!({}), Duration::from_secs(10))
+            .execute_platform(Script::Doctor, &json!({}), FIXTURE_TIMEOUT)
             .unwrap_err();
         assert_eq!(error.code(), "SCRIPT_FAILED");
     }
@@ -352,7 +354,7 @@ mod tests {
     fn invalid_json_is_rejected() {
         let (_directory, path) = executable_fixture("#!/bin/sh\nprintf '%s' 'not-json'\n");
         let error = OsascriptRunner::with_program(path)
-            .execute_platform(Script::Doctor, &json!({}), Duration::from_secs(2))
+            .execute_platform(Script::Doctor, &json!({}), FIXTURE_TIMEOUT)
             .unwrap_err();
         assert_eq!(error.code(), "INVALID_SCRIPT_OUTPUT");
     }
@@ -374,7 +376,7 @@ mod tests {
             "#!/bin/sh\nprintf '%s' 'Not authorized to send Apple events. (-1743)' >&2\nexit 1\n";
         let (_directory, path) = executable_fixture(script);
         let error = OsascriptRunner::with_program(path)
-            .execute_platform(Script::Doctor, &json!({}), Duration::from_secs(2))
+            .execute_platform(Script::Doctor, &json!({}), FIXTURE_TIMEOUT)
             .unwrap_err();
         assert_eq!(error.code(), "AUTOMATION_PERMISSION_DENIED");
     }

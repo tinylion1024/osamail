@@ -7,6 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-07-26
+
+### Fixed
+
+- Treat the repository Homebrew formula as an explicit local path during
+  release validation instead of parsing it as a remote tap name.
+
 ## [0.1.0] - 2026-07-26
 
 ### Added
@@ -30,5 +37,6 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Portable help and version behavior outside macOS.
 - Universal macOS release build and Homebrew packaging support.
 
-[Unreleased]: https://github.com/tinylion1024/osamail/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tinylion1024/osamail/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/tinylion1024/osamail/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/tinylion1024/osamail/releases/tag/v0.1.0
