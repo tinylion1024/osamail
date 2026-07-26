@@ -14,7 +14,7 @@ A release consists of:
 - an updated formula in `tinylion1024/homebrew-tap`.
 
 The archive contains `osamail`, `README.md`, `README.zh-CN.md`, `LICENSE`, and
-`CHANGELOG.md`. OsaMail 0.1.x releases are not code-signed or notarized.
+`CHANGELOG.md`. OsaMail releases are not code-signed or notarized.
 
 ## Prerequisites
 
@@ -33,13 +33,13 @@ environment.
 
 ## 1. Prepare the version
 
-`Cargo.toml` is the version source of truth. For a version such as `0.1.2`:
+`Cargo.toml` is the version source of truth. For a version such as `0.2.0`:
 
 1. Set `[package].version` in `Cargo.toml`.
 2. Run Cargo so `Cargo.lock` reflects the package version.
 3. Move release notes from `[Unreleased]` into a dated changelog section.
 4. Verify README commands against current clap help.
-5. Confirm that `Cargo.toml`, the changelog heading, intended tag `v0.1.2`, and
+5. Confirm that `Cargo.toml`, the changelog heading, intended tag `v0.2.0`, and
    Homebrew formula version agree.
 
 The binary version comes from `env!("CARGO_PKG_VERSION")`; do not hard-code it
@@ -108,8 +108,8 @@ publication; prepare a new patch release for corrections.
 Commit the version and documentation, then create and push an annotated tag:
 
 ```bash
-git tag -a v0.1.2 -m "OsaMail 0.1.2"
-git push origin v0.1.2
+git tag -a v0.2.0 -m "OsaMail 0.2.0"
+git push origin v0.2.0
 ```
 
 The release workflow for `v*` tags verifies that the tag matches the Cargo
@@ -120,17 +120,17 @@ Release.
 After the workflow completes, verify:
 
 ```text
-osamail-v0.1.2-universal-apple-darwin.tar.gz
-osamail-v0.1.2-universal-apple-darwin.tar.gz.sha256
+osamail-v0.2.0-universal-apple-darwin.tar.gz
+osamail-v0.2.0-universal-apple-darwin.tar.gz.sha256
 ```
 
 Download both assets, verify the checksum using the format produced by the
 workflow, unpack the archive, and run:
 
 ```bash
-tar -xzf osamail-v0.1.2-universal-apple-darwin.tar.gz
-./osamail-v0.1.2/osamail --version
-./osamail-v0.1.2/osamail --help
+tar -xzf osamail-v0.2.0-universal-apple-darwin.tar.gz
+./osamail-v0.2.0/osamail --version
+./osamail-v0.2.0/osamail --help
 ```
 
 Do not move the tag to repair an immutable release. Fix the issue and publish a

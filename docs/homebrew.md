@@ -13,7 +13,7 @@ build and a clean Homebrew installation test.
 
 ## Automated release flow
 
-Pushing a version tag such as `v0.1.2` starts
+Pushing a version tag such as `v0.2.0` starts
 `.github/workflows/release.yml`:
 
 1. Confirm the tag matches the version in `Cargo.toml`.
@@ -58,7 +58,7 @@ logs.
 The release workflow runs:
 
 ```bash
-./scripts/update-homebrew-formula.sh v0.1.2
+./scripts/update-homebrew-formula.sh v0.2.0
 ```
 
 The script downloads the public release archive and updates
@@ -67,8 +67,8 @@ the same calculation against a local archive:
 
 ```bash
 ./scripts/update-homebrew-formula.sh \
-  v0.1.2 \
-  dist/osamail-v0.1.2-universal-apple-darwin.tar.gz
+  v0.2.0 \
+  dist/osamail-v0.2.0-universal-apple-darwin.tar.gz
 ```
 
 The generated formula must contain:
@@ -113,5 +113,5 @@ change.
 - **Automation denial after installation:** the formula is installed correctly;
   grant the invoking terminal access under **System Settings -> Privacy &
   Security -> Automation**.
-- **Gatekeeper warning:** 0.1.x artifacts are not signed or notarized. Do not
+- **Gatekeeper warning:** OsaMail artifacts are not signed or notarized. Do not
   instruct users to disable Gatekeeper globally.

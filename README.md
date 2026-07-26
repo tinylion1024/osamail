@@ -45,7 +45,7 @@ own. Apple Mail remains responsible for communicating with email providers.
 - Automation permission for the terminal or application that invokes OsaMail.
 - Rust 1.85 or newer only when building from source.
 
-OsaMail 0.1.2 has been developed and live-tested against Mail 16.0 on macOS
+OsaMail 0.2.0 has been developed and live-tested against Mail 16.0 on macOS
 15.3. Automation authorization remains specific to the terminal or application
 that invokes OsaMail.
 
@@ -65,12 +65,12 @@ checks. Maintainers can follow
 ### GitHub Release
 
 After a release is published, download
-`osamail-v0.1.2-universal-apple-darwin.tar.gz` from the repository's Releases
+`osamail-v0.2.0-universal-apple-darwin.tar.gz` from the repository's Releases
 page, verify its adjacent SHA-256 file, and install the binary:
 
 ```bash
-tar -xzf osamail-v0.1.2-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.1.2/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.2.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.2.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -80,7 +80,7 @@ required for `/usr/local/bin`.
 
 ### Cargo
 
-After version 0.1.2 is published to crates.io:
+After version 0.2.0 is published to crates.io:
 
 ```bash
 cargo install osamail
@@ -319,7 +319,7 @@ Message-list data has this shape:
 }
 ```
 
-Field names form the 0.1.2 machine-readable interface. Optional Mail values may
+Field names form the 0.2.0 machine-readable interface. Optional Mail values may
 be `null` or omitted depending on the response model.
 
 ## Shell pipelines
@@ -410,7 +410,7 @@ reporting process.
 - Mail provides message content as text/rich text. OsaMail does not render HTML,
   load attachments, or expose raw MIME.
 - Body search and large mailboxes can be slow. Increase `--timeout` when needed.
-- Version 0.1.2 does not support attachments, reply, forward, delete, move,
+- Version 0.2.0 does not support attachments, reply, forward, delete, move,
   archive, read-state changes, flags, rules, notifications, templates, HTML
   composition, signing, or encryption.
 - The release is not code-signed or notarized.
@@ -468,7 +468,7 @@ See [docs/releasing.md](docs/releasing.md) for the ordered checklist and
 
 ## Roadmap
 
-Possible post-0.1.2 work:
+Possible post-0.2.0 work:
 
 - code signing and notarization;
 - stronger integration coverage across supported macOS and Mail versions;

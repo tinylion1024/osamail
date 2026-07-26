@@ -45,7 +45,7 @@ OsaMail 以本地优先为原则，不包含遥测，也不会自行发起网络
 - 调用 OsaMail 的终端或应用需要获得自动化权限。
 - 从源码构建时需要 Rust 1.85 或更高版本。
 
-OsaMail 0.1.2 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
+OsaMail 0.2.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
 自动化授权与调用 OsaMail 的具体终端或应用绑定。
 
 ## 安装
@@ -63,12 +63,12 @@ brew install tinylion1024/tap/osamail
 ### GitHub Release
 
 版本发布后，从仓库 Releases 页面下载
-`osamail-v0.1.2-universal-apple-darwin.tar.gz`，校验旁边提供的 SHA-256
+`osamail-v0.2.0-universal-apple-darwin.tar.gz`，校验旁边提供的 SHA-256
 文件，然后安装二进制：
 
 ```bash
-tar -xzf osamail-v0.1.2-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.1.2/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.2.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.2.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -77,7 +77,7 @@ osamail --version
 
 ### Cargo
 
-0.1.2 发布到 crates.io 后，可运行：
+0.2.0 发布到 crates.io 后，可运行：
 
 ```bash
 cargo install osamail
@@ -310,7 +310,7 @@ OsaMail 能给出明确的恢复步骤，错误还会包含 `hint`，例如列�
 }
 ```
 
-字段名称构成 0.1.2 的机器可读接口。根据响应模型，可选的 Mail 值可能为 `null`
+字段名称构成 0.2.0 的机器可读接口。根据响应模型，可选的 Mail 值可能为 `null`
 或被省略。
 
 ## Shell 管道
@@ -396,7 +396,7 @@ OsaMail：
 - Mail 以文本或富文本形式提供邮件内容。OsaMail 不渲染 HTML、不加载附件，也不
   暴露原始 MIME。
 - 正文搜索和大型邮箱可能较慢。必要时可增加 `--timeout`。
-- 0.1.2 不支持附件、回复、转发、删除、移动、归档、已读状态修改、旗标、规则、
+- 0.2.0 不支持附件、回复、转发、删除、移动、归档、已读状态修改、旗标、规则、
   通知、模板、HTML 编写、签名或加密。
 - 当前发布产物未进行代码签名或公证。
 
@@ -451,7 +451,7 @@ GitHub Release 工作流会自动构建发布产物并更新 Homebrew Tap。开�
 
 ## 路线图
 
-0.1.2 之后可能开展的工作：
+0.2.0 之后可能开展的工作：
 
 - 代码签名和公证；
 - 加强跨 macOS 与 Mail 版本的集成测试覆盖；
