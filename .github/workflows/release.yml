@@ -94,8 +94,12 @@ jobs:
         run: |
           set -euo pipefail
           ruby -c packaging/homebrew/osamail.rb
-          brew install --formula ./packaging/homebrew/osamail.rb
-          brew test osamail
+          brew tap-new tinylion1024/tap --no-git
+          tap_directory="$(brew --repository tinylion1024/tap)"
+          mkdir -p "${tap_directory}/Formula"
+          cp packaging/homebrew/osamail.rb "${tap_directory}/Formula/osamail.rb"
+          brew install --formula tinylion1024/tap/osamail
+          brew test tinylion1024/tap/osamail
           osamail --version
           osamail --help >/dev/null
 

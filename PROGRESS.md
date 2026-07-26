@@ -57,9 +57,10 @@ Last updated: 2026-07-26
 - The release workflow now builds and uploads universal assets, validates the
   generated Homebrew formula by installing it, and publishes it with a
   tap-scoped deploy key.
-- The `v0.1.0` GitHub Release assets published successfully. Its Homebrew job
-  exposed a local-formula path parsing error; the explicit-path correction and
-  complete `v0.1.1` local release gate passed before the recovery release.
+- The `v0.1.0` and `v0.1.1` GitHub Release assets published successfully.
+  Their Homebrew jobs exposed increasingly strict current-Homebrew requirements
+  for formula paths; `v0.1.2` validates the formula inside an isolated local tap
+  before publishing the real tap.
 - The complete required local check sequence passed after giving immediate
   subprocess fixtures a shared test-only timeout to avoid load-related CI
   flakes while retaining the dedicated 50 ms timeout behavior test.
