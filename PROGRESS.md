@@ -29,6 +29,9 @@ Last updated: 2026-07-27
 - [x] Added tag-gated GitHub releases and automated Homebrew tap publication.
 - [x] Prepared OsaMail 0.2.0 with subject-only listings, delayed interactive
   progress feedback, and actionable lookup-error recovery hints.
+- [x] Reworked the English and Simplified Chinese READMEs around a
+  value-to-install-to-first-result path, goal-based command discovery, and
+  concise workflow and FAQ sections.
 
 ## Fresh validation evidence
 
@@ -37,7 +40,7 @@ Last updated: 2026-07-27
 - `cargo test --all-features`: 42 passed, 0 failed; 5 opt-in macOS tests ignored.
 - `cargo test --doc`: passed.
 - `cargo build --release --locked`: passed for OsaMail 0.2.0.
-- `cargo package --allow-dirty`: passed for 44 packaged files.
+- `cargo package`: passed for 44 packaged files.
 - Exact `cargo publish --dry-run`: passed; no upload occurred.
 - `./scripts/check.sh`: passed, including all six JXA syntax checks, release
   build, package, and publish dry-run checks.
@@ -56,6 +59,10 @@ Last updated: 2026-07-27
   installation passed.
 - English and Simplified Chinese README section parity passed; the universal
   release archive contains both `README.md` and `README.zh-CN.md`.
+- Both READMEs passed heading, code-fence, and local-link validation with one
+  H1, 12 matching H2 sections, and 16 closed code blocks each.
+- Every command and option used in the READMEs was checked against the current
+  top-level and subcommand help output.
 - GitHub Actions workflow syntax passed `actionlint` 1.7.7 and YAML parsing.
 - The release workflow now builds and uploads universal assets, validates the
   generated Homebrew formula by installing it, and publishes it with a
