@@ -6,7 +6,11 @@ on:
       - "v*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   CARGO_TERM_COLOR: always
@@ -15,6 +19,8 @@ jobs:
   release:
     name: Build universal macOS release
     runs-on: macos-14
+    permissions:
+      contents: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -55,9 +61,64 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gh release create "${GITHUB_REF_NAME}" \
-            "dist/osamail-${GITHUB_REF_NAME}-universal-apple-darwin.tar.gz" \
-            "dist/osamail-${GITHUB_REF_NAME}-universal-apple-darwin.tar.gz.sha256" \
-            --verify-tag \
-            --generate-notes \
-            --title "OsaMail ${GITHUB_REF_NAME}"
+          archive="dist/osamail-${GITHUB_REF_NAME}-universal-apple-darwin.tar.gz"
+          checksum="${archive}.sha256"
+          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
+            gh release upload "${GITHUB_REF_NAME}" "$archive" "$checksum" --clobber
+          else
+            gh release create "${GITHUB_REF_NAME}" \
+              "$archive" \
+              "$checksum" \
+              --verify-tag \
+              --generate-notes \
+              --title "OsaMail ${GITHUB_REF_NAME}"
+          fi
+
+  homebrew:
+    name: Publish Homebrew formula
+    needs: release
+    runs-on: macos-14
+    env:
+      HOMEBREW_NO_AUTO_UPDATE: "1"
+    steps:
+      - name: Check out release source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Update formula from the public release asset
+        run: ./scripts/update-homebrew-formula.sh "${GITHUB_REF_NAME}"
+
+      - name: Validate and install formula
+        shell: bash
+        run: |
+          set -euo pipefail
+          ruby -c packaging/homebrew/osamail.rb
+          brew install --formula packaging/homebrew/osamail.rb
+          brew test osamail
+          osamail --version
+          osamail --help >/dev/null
+
+      - name: Check out Homebrew tap
+        uses: actions/checkout@v4
+        with:
+          repository: tinylion1024/homebrew-tap
+          ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
+          path: homebrew-tap
+
+      - name: Publish formula to the tap
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p homebrew-tap/Formula
+          cp packaging/homebrew/osamail.rb homebrew-tap/Formula/osamail.rb
+          cd homebrew-tap
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula/osamail.rb
+          if git diff --cached --quiet; then
+            echo "Homebrew formula is already current."
+            exit 0
+          fi
+          git commit -m "osamail ${GITHUB_REF_NAME#v}"
+          git push origin HEAD:main

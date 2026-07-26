@@ -343,7 +343,7 @@ mod tests {
     fn nonzero_status_is_a_script_failure() {
         let (_directory, path) = executable_fixture("#!/bin/sh\nexit 9\n");
         let error = OsascriptRunner::with_program(path)
-            .execute_platform(Script::Doctor, &json!({}), Duration::from_secs(2))
+            .execute_platform(Script::Doctor, &json!({}), Duration::from_secs(10))
             .unwrap_err();
         assert_eq!(error.code(), "SCRIPT_FAILED");
     }

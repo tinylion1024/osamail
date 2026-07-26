@@ -16,7 +16,7 @@ for command in cargo lipo file shasum tar; do
   fi
 done
 
-for required_file in README.md LICENSE CHANGELOG.md; do
+for required_file in README.md README.zh-CN.md LICENSE CHANGELOG.md; do
   if [[ ! -f "$required_file" ]]; then
     echo "required archive file not found: $required_file" >&2
     exit 1
@@ -62,7 +62,7 @@ file "$universal_binary"
 
 stage_dir="$temp_dir/osamail-${tag}"
 mkdir -p "$stage_dir"
-cp "$universal_binary" README.md LICENSE CHANGELOG.md "$stage_dir/"
+cp "$universal_binary" README.md README.zh-CN.md LICENSE CHANGELOG.md "$stage_dir/"
 
 echo "==> Creating archive"
 tar -C "$temp_dir" -czf "$dist_dir/$archive_name" "osamail-${tag}"

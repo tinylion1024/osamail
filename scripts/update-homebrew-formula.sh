@@ -46,7 +46,9 @@ if [[ $# -eq 2 ]]; then
 else
   archive="$temp_dir/$archive_name"
   echo "==> Downloading $url"
-  curl --fail --location --silent --show-error "$url" --output "$archive"
+  curl --fail --location --silent --show-error \
+    --retry 5 --retry-all-errors --retry-delay 2 \
+    "$url" --output "$archive"
 fi
 
 sha256="$(shasum -a 256 "$archive" | awk '{print $1}')"
@@ -63,9 +65,4 @@ echo "==> Updated packaging/homebrew/osamail.rb"
 echo "    version: $version"
 echo "    url: $url"
 echo "    sha256: $sha256"
-echo
-echo "Next steps:"
-echo "  1. Copy packaging/homebrew/osamail.rb to Formula/osamail.rb in tinylion1024/homebrew-tap."
-echo "  2. Run: brew audit --strict Formula/osamail.rb"
-echo "  3. Run: brew install --build-from-source Formula/osamail.rb"
-echo "  4. Commit and push the tap repository after verification."
+echo "Formula is ready for validation and publication."

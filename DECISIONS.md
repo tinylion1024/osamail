@@ -47,3 +47,11 @@ already-read message, so no command-specific AppleScript fallback is needed for
 0.1.0. A successful response means Mail accepted the open request; exact window
 focus and selection remain controlled by Mail. Opaque references are locators,
 not durable identifiers, and can become stale when Mail data changes.
+
+## ADR-008: Tag-gated release and scoped Homebrew deployment
+
+Pushes and pull requests run portable and macOS quality gates. A matching `v*`
+tag is the only release trigger: it builds the universal archive, publishes the
+GitHub Release, then downloads that public asset to validate and install the
+Homebrew formula before updating `tinylion1024/homebrew-tap`. The cross-repository
+write uses a deploy key scoped to the tap instead of a broad personal token.

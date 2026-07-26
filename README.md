@@ -1,5 +1,7 @@
 # OsaMail
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 A tiny, scriptable CLI for Apple Mail, powered by `osascript`.
 
 OsaMail controls accounts already configured in Apple Mail. It does not connect
@@ -50,14 +52,14 @@ that invokes OsaMail.
 
 ### Homebrew
 
-After the tap and first release are published:
-
 ```bash
 brew install tinylion1024/tap/osamail
 ```
 
-The tap does not exist as part of this source repository. Maintainers can follow
-[the Homebrew publishing guide](docs/homebrew.md) to create and update it.
+Version tags publish a GitHub Release and automatically update the formula in
+the Homebrew tap after the release archive passes its build and installation
+checks. Maintainers can follow
+[the Homebrew publishing guide](docs/homebrew.md) for setup and recovery details.
 
 ### GitHub Release
 
@@ -446,8 +448,9 @@ No send integration test runs without both `OSAMAIL_INTEGRATION=1` and
 ## Releasing
 
 Maintainers must run the complete local gate, update the changelog, publish the
-crate, create a `v*` tag for the GitHub release workflow, and then update the
-Homebrew tap. No development command performs an actual publication.
+crate, and create a `v*` tag. The GitHub release workflow builds the release and
+updates the Homebrew tap automatically. No development command performs an
+actual publication.
 
 See [docs/releasing.md](docs/releasing.md) for the ordered checklist and
 [docs/homebrew.md](docs/homebrew.md) for tap maintenance.

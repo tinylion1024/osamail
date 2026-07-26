@@ -13,8 +13,8 @@ A release consists of:
 - an adjacent `.sha256` checksum file; and
 - an updated formula in `tinylion1024/homebrew-tap`.
 
-The archive contains `osamail`, `README.md`, `LICENSE`, and `CHANGELOG.md`.
-OsaMail 0.1.x releases are not code-signed or notarized.
+The archive contains `osamail`, `README.md`, `README.zh-CN.md`, `LICENSE`, and
+`CHANGELOG.md`. OsaMail 0.1.x releases are not code-signed or notarized.
 
 ## Prerequisites
 
@@ -24,6 +24,8 @@ OsaMail 0.1.x releases are not code-signed or notarized.
 - A crates.io account and API token authorized for the `osamail` crate.
 - Write access to `tinylion1024/homebrew-tap`.
 - GitHub Actions permissions to create releases and upload assets.
+- A write-enabled Homebrew tap deploy key stored in the OsaMail repository as
+  the `HOMEBREW_TAP_DEPLOY_KEY` Actions secret.
 
 Do not store tokens in the repository or pass them in command-line arguments.
 Use the authenticated Cargo and GitHub mechanisms appropriate to the maintainer
@@ -134,19 +136,24 @@ tar -xzf osamail-v0.1.0-universal-apple-darwin.tar.gz
 Do not move the tag to repair an immutable release. Fix the issue and publish a
 new version.
 
-## 5. Update Homebrew
+## 5. Verify the automated Homebrew update
 
-Once the GitHub asset is public, update the local formula template:
+After the release job succeeds, the same workflow downloads the public asset,
+updates and installs the formula on a clean macOS runner, and commits it to
+`tinylion1024/homebrew-tap`.
+
+Confirm the workflow completed and inspect:
 
 ```bash
-./scripts/update-homebrew-formula.sh v0.1.0
+gh run list --workflow Release
+gh api repos/tinylion1024/homebrew-tap/contents/Formula/osamail.rb
 ```
 
-Review the URL, version, and SHA-256 in `packaging/homebrew/osamail.rb`. Copy the
-formula to `Formula/osamail.rb` in the tap repository, test it, commit it, and
-push it. The update script does not push either repository.
+The formula URL, version, and SHA-256 must match the GitHub Release. If tap
+publication failed after the release succeeded, fix the scoped deploy key or
+the formula issue and rerun the failed workflow jobs.
 
-See [homebrew.md](homebrew.md) for the exact tap workflow.
+See [homebrew.md](homebrew.md) for setup, rotation, and manual recovery.
 
 ## 6. Post-release verification
 

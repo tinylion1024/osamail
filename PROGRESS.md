@@ -25,6 +25,8 @@ Last updated: 2026-07-26
 - [x] Phase 5 — complete tests
 - [x] Phase 6 — documentation and distribution
 - [x] Phase 7 — final acceptance
+- [x] Added synchronized English and Simplified Chinese README documentation.
+- [x] Added tag-gated GitHub releases and validated Homebrew tap publication.
 
 ## Fresh validation evidence
 
@@ -50,5 +52,13 @@ Last updated: 2026-07-26
 - Homebrew formula generation, checksum matching, Ruby syntax, and local archive
   installation passed. Remote publication and remote formula installation were
   intentionally not performed.
+- English and Simplified Chinese README section parity passed; the universal
+  release archive contains both `README.md` and `README.zh-CN.md`.
+- GitHub Actions workflow syntax passed `actionlint` 1.7.7 and YAML parsing.
+- The release workflow now builds and uploads universal assets, validates the
+  generated Homebrew formula by installing it, and publishes it with a
+  tap-scoped deploy key.
+- The complete required local check sequence passed after increasing the
+  nonzero-exit fixture's test-only timeout to avoid load-related CI flakes.
 
 Validation results are recorded only after the command has completed.

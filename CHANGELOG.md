@@ -7,10 +7,13 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
-## [0.1.0]
+## [0.1.0] - 2026-07-26
 
 ### Added
 
+- Bilingual English and Simplified Chinese README documentation.
+- GitHub CI/CD for versioned universal macOS releases and automatic, validated
+  Homebrew tap publication.
 - Environment diagnostics for macOS, `osascript`, Apple Mail, Automation
   permission, and configured accounts.
 - Apple Mail account listing without credentials.
