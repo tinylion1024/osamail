@@ -13,6 +13,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
   subject-only output and reduced Apple Mail property reads.
 - Add delayed, TTY-only progress feedback for Apple Mail read operations
   without changing piped, JSON, or quiet output.
+- Add actionable recovery hints for invalid accounts, mailbox names, and stale
+  message references in both human-readable and JSON errors.
 
 ## [0.1.2] - 2026-07-26
 

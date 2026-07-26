@@ -279,7 +279,9 @@ Run `osamail <command> --help` for the authoritative option list.
 
 `--json` writes exactly one JSON value to stdout. Successful responses use
 `{"ok":true,"data":...}`; failures use
-`{"ok":false,"error":{"code":...,"message":...}}` and go to stderr.
+`{"ok":false,"error":{"code":...,"message":...}}` and go to stderr. Errors
+include a `hint` when OsaMail can suggest a concrete recovery step, such as
+listing valid accounts or refreshing a stale message reference.
 
 For example, a successful no-send dry-run produces:
 

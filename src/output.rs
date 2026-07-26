@@ -246,6 +246,26 @@ mod tests {
     }
 
     #[test]
+    fn lookup_errors_include_recovery_hints_in_human_and_json_output() {
+        let error = OsaMailError::AccountNotFound(String::new());
+        let mut human = Vec::new();
+        write_error(&mut human, false, &error).unwrap();
+        assert!(
+            String::from_utf8(human)
+                .unwrap()
+                .contains("hint: Run `osamail accounts`")
+        );
+
+        let mut json = Vec::new();
+        write_error(&mut json, true, &error).unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&json).unwrap();
+        assert_eq!(
+            value["error"]["hint"],
+            "Run `osamail accounts` and use an exact enabled account name."
+        );
+    }
+
+    #[test]
     fn body_truncation_preserves_utf8() {
         assert_eq!(truncate_bytes("a🚀b", 4), "a");
         assert_eq!(truncate_bytes("a🚀b", 5), "a🚀");

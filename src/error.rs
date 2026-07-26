@@ -77,6 +77,15 @@ impl OsaMailError {
             Self::UnsupportedPlatform => Some("Run OsaMail on macOS with Apple Mail installed."),
             Self::OsaScriptNotFound => Some("Restore the macOS system tool at /usr/bin/osascript."),
             Self::MailNotFound => Some("Install or restore /System/Applications/Mail.app."),
+            Self::AccountNotFound(_) => {
+                Some("Run `osamail accounts` and use an exact enabled account name.")
+            }
+            Self::MailboxNotFound(_) => {
+                Some("Check the localized mailbox name in Apple Mail, or retry without --mailbox.")
+            }
+            Self::MessageNotFound | Self::InvalidReference(_) => Some(
+                "The reference may be stale; run `osamail recent`, `osamail unread`, or `osamail search` to get a fresh ref.",
+            ),
             _ => None,
         }
     }

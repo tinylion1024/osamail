@@ -270,7 +270,9 @@ osamail send \
 
 `--json` 向标准输出写入且只写入一个 JSON 值。成功响应使用
 `{"ok":true,"data":...}`；失败响应使用
-`{"ok":false,"error":{"code":...,"message":...}}` 并写入标准错误。
+`{"ok":false,"error":{"code":...,"message":...}}` 并写入标准错误。如果
+OsaMail 能给出明确的恢复步骤，错误还会包含 `hint`，例如列出有效账户或刷新已
+失效的邮件引用。
 
 成功的“不发送”演练示例：
 
