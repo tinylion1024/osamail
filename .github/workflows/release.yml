@@ -23,7 +23,7 @@ jobs:
       contents: write
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Install stable Rust and macOS targets
         run: |
@@ -82,7 +82,7 @@ jobs:
       HOMEBREW_NO_AUTO_UPDATE: "1"
     steps:
       - name: Check out release source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -100,7 +100,7 @@ jobs:
           osamail --help >/dev/null
 
       - name: Check out Homebrew tap
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: tinylion1024/homebrew-tap
           ssh-key: ${{ secrets.HOMEBREW_TAP_DEPLOY_KEY }}
