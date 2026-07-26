@@ -25,6 +25,7 @@ Last updated: 2026-07-26
 - [x] Phase 5 — complete tests
 - [x] Phase 6 — documentation and distribution
 - [x] Phase 7 — final acceptance
+- [x] Added synchronized English and Simplified Chinese README documentation.
 
 ## Fresh validation evidence
 
@@ -50,5 +51,7 @@ Last updated: 2026-07-26
 - Homebrew formula generation, checksum matching, Ruby syntax, and local archive
   installation passed. Remote publication and remote formula installation were
   intentionally not performed.
+- English and Simplified Chinese README section parity passed; the universal
+  release archive contains both `README.md` and `README.zh-CN.md`.
 
 Validation results are recorded only after the command has completed.

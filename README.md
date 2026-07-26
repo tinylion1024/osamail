@@ -1,5 +1,7 @@
 # OsaMail
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 A tiny, scriptable CLI for Apple Mail, powered by `osascript`.
 
 OsaMail controls accounts already configured in Apple Mail. It does not connect
