@@ -94,7 +94,7 @@ jobs:
         run: |
           set -euo pipefail
           ruby -c packaging/homebrew/osamail.rb
-          brew install --formula packaging/homebrew/osamail.rb
+          brew install --formula ./packaging/homebrew/osamail.rb
           brew test osamail
           osamail --version
           osamail --help >/dev/null

@@ -13,7 +13,7 @@ build and a clean Homebrew installation test.
 
 ## Automated release flow
 
-Pushing a version tag such as `v0.1.0` starts
+Pushing a version tag such as `v0.1.1` starts
 `.github/workflows/release.yml`:
 
 1. Confirm the tag matches the version in `Cargo.toml`.
@@ -58,7 +58,7 @@ logs.
 The release workflow runs:
 
 ```bash
-./scripts/update-homebrew-formula.sh v0.1.0
+./scripts/update-homebrew-formula.sh v0.1.1
 ```
 
 The script downloads the public release archive and updates
@@ -67,8 +67,8 @@ the same calculation against a local archive:
 
 ```bash
 ./scripts/update-homebrew-formula.sh \
-  v0.1.0 \
-  dist/osamail-v0.1.0-universal-apple-darwin.tar.gz
+  v0.1.1 \
+  dist/osamail-v0.1.1-universal-apple-darwin.tar.gz
 ```
 
 The generated formula must contain:
