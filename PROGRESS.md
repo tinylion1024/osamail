@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-07-26
+Last updated: 2026-07-27
 
 ## Phase 0 — environment and Apple Mail automation
 
@@ -27,24 +27,27 @@ Last updated: 2026-07-26
 - [x] Phase 7 — final acceptance
 - [x] Added synchronized English and Simplified Chinese README documentation.
 - [x] Added tag-gated GitHub releases and automated Homebrew tap publication.
+- [x] Prepared OsaMail 0.2.0 with subject-only listings, delayed interactive
+  progress feedback, and actionable lookup-error recovery hints.
 
 ## Fresh validation evidence
 
-- `cargo fmt --all -- --check`: passed using an isolated Rust 1.89.0 toolchain.
+- `cargo fmt --all -- --check`: passed.
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed.
-- `cargo test --all-features`: 35 passed, 0 failed; 4 opt-in macOS tests ignored.
+- `cargo test --all-features`: 42 passed, 0 failed; 5 opt-in macOS tests ignored.
 - `cargo test --doc`: passed.
+- `cargo build --release --locked`: passed for OsaMail 0.2.0.
+- `cargo package --allow-dirty`: passed for 44 packaged files.
+- Exact `cargo publish --dry-run`: passed; no upload occurred.
 - `./scripts/check.sh`: passed, including all six JXA syntax checks, release
   build, package, and publish dry-run checks.
-- Exact `cargo publish --dry-run`: passed from a clean temporary Git snapshot;
-  no upload occurred.
 - `./scripts/smoke-test.sh`: passed.
 - `./scripts/build-universal.sh`: passed; the produced Mach-O contains both
-  `arm64` and `x86_64`.
+  `arm64` and `x86_64`, and reports `osamail 0.2.0`.
 - Source install and universal-archive install into isolated temporary prefixes:
   passed.
 - `OSAMAIL_INTEGRATION=1 cargo test --test macos_integration -- --ignored
-  --nocapture`: 4 passed, 0 failed.
+  --nocapture`: 5 passed, 0 failed, including the subject-only unread listing.
 - Privacy-preserving live acceptance checks passed for `doctor`, account schema,
   100-message recent listing, unread listing/count, metadata search, full
   `show`, and Unicode/quotes/newline send dry-run.
