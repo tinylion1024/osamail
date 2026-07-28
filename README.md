@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-Read, search, automate, and send Apple Mail from the terminal.
+Read, search, organize, automate, and send Apple Mail from the terminal.
 
 OsaMail is an open-source, local-first Apple Mail CLI for macOS. It controls the
 accounts already configured in Mail through Apple's built-in `osascript`, so
@@ -15,10 +15,10 @@ osamail doctor
 osamail unread --titles
 ```
 
-OsaMail can list, search, show, open, and send plain-text messages. It provides
-clean terminal output for people and structured JSON for scripts. OsaMail is
-not a standalone email client and does not connect directly to Gmail, iCloud
-Mail, Exchange, or any other provider.
+OsaMail can list, search, show, open, mark, and send plain-text messages. It
+provides clean terminal output for people and structured JSON for scripts.
+OsaMail is not a standalone email client and does not connect directly to
+Gmail, iCloud Mail, Exchange, or any other provider.
 
 ## Why OsaMail?
 
@@ -28,6 +28,7 @@ Mail, Exchange, or any other provider.
 | Automate an existing Apple Mail setup | Stable CLI commands and JSON output |
 | Avoid another credentials flow | Uses accounts already authenticated in Apple Mail |
 | Keep email access local | No telemetry, private Mail database access, or OsaMail network requests |
+| Change message state deliberately | One `mark` command with a no-change `--dry-run` mode |
 | Stay in control before sending | Plain-text send with a no-send `--dry-run` mode |
 
 OsaMail is designed for developers, automation workflows, and macOS users who
@@ -52,11 +53,12 @@ osamail recent --limit 5 --json
 ```
 
 Message lists return an opaque `ref`. Use that single shell-safe value to show
-the message in the terminal or open it in Apple Mail:
+the message, open it in Apple Mail, or preview a state change:
 
 ```bash
 osamail show <ref>
 osamail open <ref>
+osamail mark read <ref> --dry-run
 ```
 
 ## Choose a command
@@ -72,6 +74,8 @@ osamail open <ref>
 | Search messages | `osamail search "query"` |
 | Read a message in the terminal | `osamail show <ref>` |
 | Open a message in Apple Mail | `osamail open <ref>` |
+| Preview a message-state change | `osamail mark read <ref> --dry-run` |
+| Change read or flag state | `osamail mark <action> <ref>` |
 | Validate a message without sending | `osamail send ... --dry-run` |
 | Send a plain-text message | `osamail send ...` |
 
@@ -184,6 +188,22 @@ JSON keeps the full body. Showing a message does not intentionally change its
 read status or load attachments. References are locators, not durable message
 IDs; get a fresh `ref` after messages move or accounts change.
 
+### Mark message state safely
+
+Preview the change first, then run the same command without `--dry-run`:
+
+```bash
+osamail mark read <ref> --dry-run
+osamail mark read <ref>
+osamail mark unread <ref>
+osamail mark flag <ref>
+osamail mark unflag <ref>
+```
+
+The four actions are `read`, `unread`, `flag`, and `unflag`. Results distinguish
+`changed`, `already_set`, and `would_change`, so scripts can stay idempotent and
+dry runs remain explicit. Default and CI tests never change real messages.
+
 ### Send safely
 
 Validate recipients and body input without creating or sending a message:
@@ -230,8 +250,9 @@ Global options can appear before or after a subcommand:
 terminal, slow read commands print one delayed status message to stderr. Piped,
 JSON, and quiet output remain unchanged.
 
-Field names form the 0.2.0 machine-readable interface. Optional Mail values may
-be `null` or omitted depending on the response model.
+Existing 0.2.0 field names remain stable. Message-state result fields are
+introduced in 0.3.0. Optional Mail values may be `null` or omitted depending on
+the response model.
 
 ## macOS Automation permission
 
@@ -289,8 +310,9 @@ Apple Mail, so the resulting UI behavior is controlled by Mail.
 
 ### Can OsaMail mark messages as read?
 
-Not in version 0.2.0. Read-state changes and other mailbox mutations are outside
-the current command set.
+Yes. Use `osamail mark read <ref>`. Start with `--dry-run` to preview the result
+without changing the message. The same command also supports `unread`, `flag`,
+and `unflag`.
 
 ### Does OsaMail work on Linux or Windows?
 
@@ -300,9 +322,8 @@ portable.
 ## Current limits
 
 OsaMail does not currently support attachments, HTML rendering or composition,
-reply, forward, delete, move, archive, read-state changes, flags, rules,
-background notifications, signing, or encryption. Release artifacts are not
-code-signed or notarized.
+reply, forward, delete, move, archive, rules, background notifications, signing,
+or encryption. Release artifacts are not code-signed or notarized.
 
 `open` and window focus depend on Apple Mail's scripting and current UI state.
 Large-mailbox and body searches may require a larger `--timeout`.
