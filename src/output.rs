@@ -5,8 +5,8 @@ use serde::Serialize;
 use crate::{
     error::OsaMailError,
     model::{
-        Account, DoctorReport, MailboxSummary, MarkOutcome, MarkResult, MessageDetail,
-        MessageSummary, SendResult, Success,
+        Account, DoctorReport, MailboxSummary, MarkBatchResult, MarkOutcome, MarkResult,
+        MessageDetail, MessageSummary, SendResult, Success,
     },
 };
 
@@ -216,6 +216,32 @@ pub fn write_mark_result(writer: &mut dyn Write, result: &MarkResult) -> Result<
                 "Dry run valid: message would be marked {}; no change was made.",
                 result.action.as_str()
             )?;
+        }
+    }
+    Ok(())
+}
+
+pub fn write_mark_batch_result(
+    writer: &mut dyn Write,
+    result: &MarkBatchResult,
+) -> Result<(), OsaMailError> {
+    writeln!(
+        writer,
+        "{}: {} succeeded, {} failed",
+        result.action.as_str(),
+        result.succeeded,
+        result.failed
+    )?;
+    for item in &result.items {
+        if let Some(outcome) = item.outcome {
+            let outcome = match outcome {
+                MarkOutcome::Changed => "changed",
+                MarkOutcome::AlreadySet => "already_set",
+                MarkOutcome::WouldChange => "would_change",
+            };
+            writeln!(writer, "{}\t{}", outcome, item.reference)?;
+        } else if let Some(error) = &item.error {
+            writeln!(writer, "failed\t{}\t{}", item.reference, error.code)?;
         }
     }
     Ok(())

@@ -72,3 +72,11 @@ versioned, URL-safe reference with an explicit `mailbox` kind. Organization
 commands consume that reference instead of parsing localized names or ambiguous
 path strings. Message and mailbox references are decoded by separate validators,
 so one cannot be accepted accidentally in place of the other.
+
+## ADR-011: Batches extend existing action commands
+
+State and organization commands accept one to 50 message references instead of
+adding a separate bulk-command hierarchy. A single-reference invocation keeps
+its existing result shape and error behavior. A multi-reference invocation
+continues after item failures and reports success and failure counts plus an
+ordered result for every input reference.

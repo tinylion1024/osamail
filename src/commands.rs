@@ -14,13 +14,13 @@ use crate::{
     },
     error::OsaMailError,
     model::{
-        AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, CountOutput,
-        DoctorAutomationData, DoctorCheck, DoctorReport, ListMailboxesRequest, ListMessagesRequest,
-        ListMode, MailboxLocator, MailboxSummary, MailboxesData, MailboxesOutput, MarkAction,
-        MarkAutomationData, MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail,
-        MessageSummary, MessagesData, MessagesOutput, OpenMessageRequest, OpenResult,
-        REFERENCE_VERSION, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest,
-        TitlesOutput,
+        AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, BatchItemError,
+        CountOutput, DoctorAutomationData, DoctorCheck, DoctorReport, ListMailboxesRequest,
+        ListMessagesRequest, ListMode, MailboxLocator, MailboxSummary, MailboxesData,
+        MailboxesOutput, MarkAction, MarkAutomationData, MarkBatchItem, MarkBatchResult,
+        MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail, MessageSummary, MessagesData,
+        MessagesOutput, OpenMessageRequest, OpenResult, REFERENCE_VERSION, RawMessageDetail,
+        SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
     },
     output, reference,
 };
@@ -397,37 +397,88 @@ fn mark(
         MarkActionArg::Flag => MarkAction::Flag,
         MarkActionArg::Unflag => MarkAction::Unflag,
     };
-    let locator = reference::decode(&args.reference)?;
+    if args.references.len() == 1 {
+        let result = mark_one(runner, timeout, &args.references[0], action, args.dry_run)?;
+        return if cli.json {
+            output::write_json_success(writer, result)
+        } else if !cli.quiet {
+            output::write_mark_result(writer, &result)
+        } else {
+            Ok(())
+        };
+    }
+
+    let mut items = Vec::with_capacity(args.references.len());
+    let mut succeeded = 0;
+    for reference in &args.references {
+        match mark_one(runner, timeout, reference, action, args.dry_run) {
+            Ok(result) => {
+                succeeded += 1;
+                items.push(MarkBatchItem {
+                    reference: result.reference,
+                    outcome: Some(result.outcome),
+                    error: None,
+                });
+            }
+            Err(error) => items.push(MarkBatchItem {
+                reference: reference.clone(),
+                outcome: None,
+                error: Some(BatchItemError {
+                    code: error.code().to_owned(),
+                    message: error.to_string(),
+                    hint: error.hint().map(str::to_owned),
+                }),
+            }),
+        }
+    }
+    let result = MarkBatchResult {
+        action,
+        dry_run: args.dry_run,
+        total: items.len(),
+        succeeded,
+        failed: items.len() - succeeded,
+        items,
+    };
+
+    if cli.json {
+        output::write_json_success(writer, result)
+    } else if !cli.quiet {
+        output::write_mark_batch_result(writer, &result)
+    } else {
+        Ok(())
+    }
+}
+
+fn mark_one(
+    runner: &dyn AutomationRunner,
+    timeout: Duration,
+    reference: &str,
+    action: MarkAction,
+    dry_run: bool,
+) -> Result<MarkResult, OsaMailError> {
+    let locator = reference::decode(reference)?;
     let data: MarkAutomationData = run_automation(
         runner,
         Script::MarkMessage,
         &AutomationRequest::MarkMessage(MarkMessageRequest {
             locator,
             action,
-            dry_run: args.dry_run,
+            dry_run,
         }),
         timeout,
     )?;
     let outcome = if data.already_set {
         MarkOutcome::AlreadySet
-    } else if args.dry_run {
+    } else if dry_run {
         MarkOutcome::WouldChange
     } else {
         MarkOutcome::Changed
     };
-    let result = MarkResult {
-        reference: args.reference.clone(),
+    Ok(MarkResult {
+        reference: reference.to_owned(),
         action,
         outcome,
-    };
-
-    if cli.json {
-        output::write_json_success(writer, result)
-    } else if !cli.quiet {
-        output::write_mark_result(writer, &result)
-    } else {
-        Ok(())
-    }
+    })
 }
 
 fn send(
@@ -755,6 +806,63 @@ mod tests {
         assert_eq!(value["data"]["action"], "read");
         assert_eq!(value["data"]["outcome"], "would_change");
         assert_eq!(value["data"]["ref"], reference);
+    }
+
+    #[test]
+    fn mark_batch_reports_each_result_and_continues_after_failure() {
+        let first = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 41,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let second = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "mark",
+            "flag",
+            &first,
+            &second,
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![
+            Ok(json!({
+                "ok": true,
+                "data": {"already_set": false}
+            })),
+            Ok(json!({
+                "ok": false,
+                "error": {
+                    "code": "MESSAGE_NOT_FOUND",
+                    "message": "Message not found."
+                }
+            })),
+        ]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["total"], 2);
+        assert_eq!(value["data"]["succeeded"], 1);
+        assert_eq!(value["data"]["failed"], 1);
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_change");
+        assert_eq!(
+            value["data"]["items"][1]["error"]["code"],
+            "MESSAGE_NOT_FOUND"
+        );
+        assert_eq!(runner.requests.lock().unwrap().len(), 2);
     }
 
     #[test]

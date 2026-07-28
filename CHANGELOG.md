@@ -11,6 +11,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 - Add `mailboxes` discovery with exact account filtering, nested paths, and
   opaque destination references.
+- Allow `mark` to process up to 50 message references with per-message results
+  and partial-failure reporting while preserving the single-message output.
 
 ## [0.3.0] - 2026-07-29
 

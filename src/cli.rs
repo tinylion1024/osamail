@@ -48,7 +48,7 @@ pub enum Command {
     Show(ShowArgs),
     /// Open one message in Apple Mail.
     Open(ReferenceArgs),
-    /// Mark one message as read, unread, flagged, or unflagged.
+    /// Mark up to 50 messages as read, unread, flagged, or unflagged.
     Mark(MarkArgs),
     /// Send a plain-text message through an Apple Mail account.
     Send(SendArgs),
@@ -179,9 +179,9 @@ pub struct MarkArgs {
     /// State to apply to the message.
     #[arg(value_enum)]
     pub action: MarkActionArg,
-    /// Opaque reference returned by recent, unread, or search.
-    #[arg(value_name = "REF")]
-    pub reference: String,
+    /// Opaque references returned by recent, unread, or search.
+    #[arg(value_name = "REF", num_args = 1..=50)]
+    pub references: Vec<String>,
     /// Validate the message and report the outcome without changing Mail.
     #[arg(long)]
     pub dry_run: bool,
@@ -303,12 +303,39 @@ mod tests {
             match cli.command {
                 Command::Mark(args) => {
                     assert_eq!(args.action.to_possible_value().unwrap().get_name(), action);
-                    assert_eq!(args.reference, "message-ref");
+                    assert_eq!(args.references, ["message-ref"]);
                     assert!(args.dry_run);
                 }
                 _ => panic!("expected mark"),
             }
         }
+    }
+
+    #[test]
+    fn mark_accepts_a_bounded_batch() {
+        let references = (0..50).map(|index| format!("ref-{index}"));
+        let cli = Cli::try_parse_from(
+            ["osamail", "mark", "read"]
+                .into_iter()
+                .map(str::to_owned)
+                .chain(references),
+        )
+        .unwrap();
+        match cli.command {
+            Command::Mark(args) => assert_eq!(args.references.len(), 50),
+            _ => panic!("expected mark"),
+        }
+
+        let too_many = (0..51).map(|index| format!("ref-{index}"));
+        assert!(
+            Cli::try_parse_from(
+                ["osamail", "mark", "read"]
+                    .into_iter()
+                    .map(str::to_owned)
+                    .chain(too_many),
+            )
+            .is_err()
+        );
     }
 
     #[test]
