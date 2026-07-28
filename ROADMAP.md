@@ -24,6 +24,8 @@ Release gate:
 
 ## v0.3.0 — explicit message state
 
+Status: release candidate.
+
 - Add one discoverable `mark` command with `read`, `unread`, `flag`, and
   `unflag` actions.
 - Accept the same opaque message references produced by list and search

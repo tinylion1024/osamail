@@ -95,8 +95,8 @@ brew install tinylion1024/tap/osamail
 下载通用 macOS 压缩包及旁边的 SHA-256 文件：
 
 ```bash
-tar -xzf osamail-v0.2.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.2.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.3.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.3.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -106,7 +106,7 @@ osamail --version
 
 ### Cargo
 
-0.2.0 发布到 crates.io 后，可运行：
+0.3.0 发布到 crates.io 后，可运行：
 
 ```bash
 cargo install osamail
@@ -125,7 +125,7 @@ cargo install --path .
 - 运行 OsaMail 的终端、IDE 或应用已获得自动化权限。
 - 仅从源码构建时需要 Rust 1.85 或更高版本。
 
-OsaMail 0.2.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
+OsaMail 0.3.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
 
 ## 常用工作流
 
