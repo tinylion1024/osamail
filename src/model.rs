@@ -85,6 +85,54 @@ pub struct SendResult {
     pub recipient_count: usize,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MarkAction {
+    Read,
+    Unread,
+    Flag,
+    Unflag,
+}
+
+impl MarkAction {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Read => "read",
+            Self::Unread => "unread",
+            Self::Flag => "flagged",
+            Self::Unflag => "unflagged",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkMessageRequest {
+    pub locator: MessageLocator,
+    pub action: MarkAction,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkAutomationData {
+    pub already_set: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MarkOutcome {
+    Changed,
+    AlreadySet,
+    WouldChange,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkResult {
+    #[serde(rename = "ref")]
+    pub reference: String,
+    pub action: MarkAction,
+    pub outcome: MarkOutcome,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 pub enum AutomationRequest {
@@ -93,6 +141,7 @@ pub enum AutomationRequest {
     ListMessages(ListMessagesRequest),
     ShowMessage(ShowMessageRequest),
     OpenMessage(OpenMessageRequest),
+    MarkMessage(MarkMessageRequest),
     SendMessage(SendRequest),
 }
 

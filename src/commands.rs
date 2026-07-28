@@ -8,13 +8,16 @@ use serde::{Serialize, de::DeserializeOwned};
 
 use crate::{
     automation::{AutomationRunner, Script},
-    cli::{Cli, Command, ListArgs, SearchArgs, SendArgs, ShowArgs, UnreadArgs},
+    cli::{
+        Cli, Command, ListArgs, MarkActionArg, MarkArgs, SearchArgs, SendArgs, ShowArgs, UnreadArgs,
+    },
     error::OsaMailError,
     model::{
         AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, CountOutput,
-        DoctorAutomationData, DoctorCheck, DoctorReport, ListMessagesRequest, ListMode,
-        MessageDetail, MessageSummary, MessagesData, MessagesOutput, OpenMessageRequest,
-        OpenResult, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
+        DoctorAutomationData, DoctorCheck, DoctorReport, ListMessagesRequest, ListMode, MarkAction,
+        MarkAutomationData, MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail,
+        MessageSummary, MessagesData, MessagesOutput, OpenMessageRequest, OpenResult,
+        RawMessageDetail, SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
     },
     output, reference,
 };
@@ -62,6 +65,7 @@ pub fn execute(
                 Ok(())
             }
         }
+        Command::Mark(args) => mark(cli, runner, output_writer, timeout, args),
         Command::Send(args) => send(cli, runner, input, output_writer, timeout, args),
     }
 }
@@ -324,6 +328,52 @@ fn show(
         output::write_json_success(writer, detail)
     } else if !cli.quiet {
         output::write_message_detail(writer, &detail, args.max_body_bytes)
+    } else {
+        Ok(())
+    }
+}
+
+fn mark(
+    cli: &Cli,
+    runner: &dyn AutomationRunner,
+    writer: &mut dyn Write,
+    timeout: Duration,
+    args: &MarkArgs,
+) -> Result<(), OsaMailError> {
+    let action = match args.action {
+        MarkActionArg::Read => MarkAction::Read,
+        MarkActionArg::Unread => MarkAction::Unread,
+        MarkActionArg::Flag => MarkAction::Flag,
+        MarkActionArg::Unflag => MarkAction::Unflag,
+    };
+    let locator = reference::decode(&args.reference)?;
+    let data: MarkAutomationData = run_automation(
+        runner,
+        Script::MarkMessage,
+        &AutomationRequest::MarkMessage(MarkMessageRequest {
+            locator,
+            action,
+            dry_run: args.dry_run,
+        }),
+        timeout,
+    )?;
+    let outcome = if data.already_set {
+        MarkOutcome::AlreadySet
+    } else if args.dry_run {
+        MarkOutcome::WouldChange
+    } else {
+        MarkOutcome::Changed
+    };
+    let result = MarkResult {
+        reference: args.reference.clone(),
+        action,
+        outcome,
+    };
+
+    if cli.json {
+        output::write_json_success(writer, result)
+    } else if !cli.quiet {
+        output::write_mark_result(writer, &result)
     } else {
         Ok(())
     }
@@ -593,6 +643,38 @@ mod tests {
         let value: Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(value["data"]["titles"][0], "Release complete");
         assert_eq!(value["data"]["count"], 1);
+    }
+
+    #[test]
+    fn mark_dry_run_serializes_the_locator_without_applying_a_change() {
+        let reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud 中文".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: Some("message@example.test".to_owned()),
+        })
+        .unwrap();
+        let cli =
+            Cli::try_parse_from(["osamail", "mark", "read", &reference, "--dry-run", "--json"])
+                .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_set": false}
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let request = &runner.requests.lock().unwrap()[0];
+        assert_eq!(request["operation"], "mark_message");
+        assert_eq!(request["action"], "read");
+        assert_eq!(request["dry_run"], true);
+        assert_eq!(request["locator"]["account"], "iCloud 中文");
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["action"], "read");
+        assert_eq!(value["data"]["outcome"], "would_change");
+        assert_eq!(value["data"]["ref"], reference);
     }
 
     #[test]

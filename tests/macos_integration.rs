@@ -65,3 +65,31 @@ fn unread_titles() {
         assert_success(output);
     }
 }
+
+#[test]
+#[ignore = "requires an authorized local Apple Mail account with at least one message"]
+fn mark_read_dry_run() {
+    let Some(recent) = run_read_only(&["recent", "--limit", "1", "--json"]) else {
+        return;
+    };
+    assert!(recent.status.success(), "recent command should succeed");
+    let recent: serde_json::Value =
+        serde_json::from_slice(&recent.stdout).expect("recent output should be JSON");
+    let reference = recent["data"]["messages"][0]["ref"]
+        .as_str()
+        .expect("recent output should contain one message reference");
+
+    let output = run_read_only(&["mark", "read", reference, "--dry-run", "--json"])
+        .expect("integration gate should remain enabled");
+    assert!(output.status.success(), "mark dry-run should succeed");
+    let result: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("mark output should be JSON");
+    assert_eq!(result["data"]["action"], "read");
+    assert!(
+        matches!(
+            result["data"]["outcome"].as_str(),
+            Some("would_change" | "already_set")
+        ),
+        "dry-run outcome should confirm no mutation"
+    );
+}

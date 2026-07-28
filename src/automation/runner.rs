@@ -30,6 +30,7 @@ pub enum Script {
     ListMessages,
     ShowMessage,
     OpenMessage,
+    MarkMessage,
     SendMessage,
 }
 
@@ -41,6 +42,7 @@ impl Script {
             Self::ListMessages => include_str!("scripts/list_messages.js"),
             Self::ShowMessage => include_str!("scripts/show_message.js"),
             Self::OpenMessage => include_str!("scripts/open_message.js"),
+            Self::MarkMessage => include_str!("scripts/mark_message.js"),
             Self::SendMessage => include_str!("scripts/send_message.js"),
         }
     }
@@ -401,5 +403,13 @@ mod tests {
 
         assert!(!string_helper.contains("catch"));
         assert!(!date_helper.contains("catch"));
+    }
+
+    #[test]
+    fn mark_script_gates_every_write_behind_dry_run() {
+        let source = Script::MarkMessage.source();
+        assert!(source.contains("if (!request.dry_run && !alreadySet)"));
+        assert_eq!(source.matches("message.readStatus = desired").count(), 1);
+        assert_eq!(source.matches("message.flaggedStatus = desired").count(), 1);
     }
 }

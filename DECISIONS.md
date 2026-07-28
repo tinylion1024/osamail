@@ -55,3 +55,12 @@ tag is the only release trigger: it builds the universal archive, publishes the
 GitHub Release, then downloads that public asset to validate and install the
 Homebrew formula before updating `tinylion1024/homebrew-tap`. The cross-repository
 write uses a deploy key scoped to the tap instead of a broad personal token.
+
+## ADR-009: One explicit message-state command
+
+OsaMail exposes read, unread, flag, and unflag changes through
+`mark <ACTION> <REF>` instead of adding four top-level commands or several
+mutually exclusive flags. Every action accepts `--dry-run`, resolves the same
+opaque locator used by `show` and `open`, and reports whether the state changed,
+was already set, or would change. The embedded script gates all property writes
+behind the dry-run check; default and CI tests never mutate real mail.

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand};
+use clap::{ArgAction, ArgGroup, Args, Parser, Subcommand, ValueEnum};
 
 #[derive(Debug, Parser)]
 #[command(
@@ -46,6 +46,8 @@ pub enum Command {
     Show(ShowArgs),
     /// Open one message in Apple Mail.
     Open(ReferenceArgs),
+    /// Mark one message as read, unread, flagged, or unflagged.
+    Mark(MarkArgs),
     /// Send a plain-text message through an Apple Mail account.
     Send(SendArgs),
 }
@@ -54,7 +56,7 @@ impl Command {
     pub const fn default_timeout_seconds(&self) -> u64 {
         match self {
             Self::Doctor | Self::Accounts | Self::Open(_) => 10,
-            Self::Recent(_) | Self::Unread(_) | Self::Show(_) | Self::Send(_) => 20,
+            Self::Recent(_) | Self::Unread(_) | Self::Show(_) | Self::Mark(_) | Self::Send(_) => 20,
             Self::Search(_) => 30,
         }
     }
@@ -63,6 +65,7 @@ impl Command {
         match self {
             Self::Recent(_) | Self::Unread(_) | Self::Search(_) => Some("Searching Apple Mail..."),
             Self::Show(_) => Some("Reading message from Apple Mail..."),
+            Self::Mark(_) => Some("Checking message in Apple Mail..."),
             Self::Doctor | Self::Accounts | Self::Open(_) | Self::Send(_) => None,
         }
     }
@@ -154,6 +157,27 @@ pub struct ReferenceArgs {
     /// Opaque reference returned by recent, unread, or search.
     #[arg(value_name = "REF")]
     pub reference: String,
+}
+
+#[derive(Debug, Args)]
+pub struct MarkArgs {
+    /// State to apply to the message.
+    #[arg(value_enum)]
+    pub action: MarkActionArg,
+    /// Opaque reference returned by recent, unread, or search.
+    #[arg(value_name = "REF")]
+    pub reference: String,
+    /// Validate the message and report the outcome without changing Mail.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+pub enum MarkActionArg {
+    Read,
+    Unread,
+    Flag,
+    Unflag,
 }
 
 #[derive(Debug, Args)]
@@ -254,6 +278,22 @@ mod tests {
     #[test]
     fn unread_titles_conflicts_with_count() {
         assert!(Cli::try_parse_from(["osamail", "unread", "--titles", "--count"]).is_err());
+    }
+
+    #[test]
+    fn mark_exposes_four_actions_and_dry_run() {
+        for action in ["read", "unread", "flag", "unflag"] {
+            let cli = Cli::try_parse_from(["osamail", "mark", action, "message-ref", "--dry-run"])
+                .unwrap();
+            match cli.command {
+                Command::Mark(args) => {
+                    assert_eq!(args.action.to_possible_value().unwrap().get_name(), action);
+                    assert_eq!(args.reference, "message-ref");
+                    assert!(args.dry_run);
+                }
+                _ => panic!("expected mark"),
+            }
+        }
     }
 
     #[test]
