@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-07-27
+Last updated: 2026-07-29
 
 ## Phase 0 — environment and Apple Mail automation
 
@@ -32,6 +32,8 @@ Last updated: 2026-07-27
 - [x] Reworked the English and Simplified Chinese READMEs around a
   value-to-install-to-first-result path, goal-based command discovery, and
   concise workflow and FAQ sections.
+- [x] Published a bounded roadmap for the v0.2.0, v0.3.0, and v0.4.0 release
+  sequence.
 
 ## Fresh validation evidence
 
@@ -40,7 +42,7 @@ Last updated: 2026-07-27
 - `cargo test --all-features`: 42 passed, 0 failed; 5 opt-in macOS tests ignored.
 - `cargo test --doc`: passed.
 - `cargo build --release --locked`: passed for OsaMail 0.2.0.
-- `cargo package`: passed for 44 packaged files.
+- `cargo package --allow-dirty`: passed for 45 packaged files.
 - Exact `cargo publish --dry-run`: passed; no upload occurred.
 - `./scripts/check.sh`: passed, including all six JXA syntax checks, release
   build, package, and publish dry-run checks.
@@ -74,5 +76,8 @@ Last updated: 2026-07-27
 - The complete required local check sequence passed after giving immediate
   subprocess fixtures a shared test-only timeout to avoid load-related CI
   flakes while retaining the dedicated 50 ms timeout behavior test.
+- The complete required local check sequence passed again on 2026-07-29 from
+  release commit `3f93c39`, including package verification, publish dry-run,
+  smoke tests, and the universal archive checksum check.
 
 Validation results are recorded only after the command has completed.
