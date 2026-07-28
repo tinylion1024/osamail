@@ -101,3 +101,48 @@ fn mark_read_dry_run() {
         "dry-run outcome should confirm no mutation"
     );
 }
+
+#[test]
+#[ignore = "requires an authorized local Apple Mail account with at least one message"]
+fn move_dry_run() {
+    let Some(recent) = run_read_only(&["recent", "--limit", "1", "--json"]) else {
+        return;
+    };
+    assert!(recent.status.success(), "recent command should succeed");
+    let recent: serde_json::Value =
+        serde_json::from_slice(&recent.stdout).expect("recent output should be JSON");
+    let message = &recent["data"]["messages"][0];
+    let message_reference = message["ref"]
+        .as_str()
+        .expect("recent output should contain one message reference");
+    let account = message["account"]
+        .as_str()
+        .expect("recent output should contain an account");
+
+    let mailboxes = run_read_only(&["mailboxes", "--account", account, "--json"])
+        .expect("integration gate should remain enabled");
+    assert!(
+        mailboxes.status.success(),
+        "mailboxes command should succeed"
+    );
+    let mailboxes: serde_json::Value =
+        serde_json::from_slice(&mailboxes.stdout).expect("mailboxes output should be JSON");
+    let destination_reference = mailboxes["data"]["mailboxes"][0]["ref"]
+        .as_str()
+        .expect("account should expose at least one mailbox");
+
+    let output = run_read_only(&[
+        "move",
+        "--to",
+        destination_reference,
+        message_reference,
+        "--dry-run",
+        "--json",
+    ])
+    .expect("integration gate should remain enabled");
+    assert!(output.status.success(), "move dry-run should succeed");
+    let result: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("move output should be JSON");
+    assert_eq!(result["data"]["dry_run"], true);
+    assert_eq!(result["data"]["failed"], 0);
+}

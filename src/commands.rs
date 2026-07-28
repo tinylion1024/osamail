@@ -9,8 +9,8 @@ use serde::{Serialize, de::DeserializeOwned};
 use crate::{
     automation::{AutomationRunner, Script},
     cli::{
-        Cli, Command, ListArgs, MailboxesArgs, MarkActionArg, MarkArgs, SearchArgs, SendArgs,
-        ShowArgs, UnreadArgs,
+        Cli, Command, ListArgs, MailboxesArgs, MarkActionArg, MarkArgs, OrganizeArgs, SearchArgs,
+        SendArgs, ShowArgs, UnreadArgs,
     },
     error::OsaMailError,
     model::{
@@ -19,8 +19,10 @@ use crate::{
         ListMessagesRequest, ListMode, MailboxLocator, MailboxSummary, MailboxesData,
         MailboxesOutput, MarkAction, MarkAutomationData, MarkBatchItem, MarkBatchResult,
         MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail, MessageSummary, MessagesData,
-        MessagesOutput, OpenMessageRequest, OpenResult, REFERENCE_VERSION, RawMessageDetail,
-        SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
+        MessagesOutput, MoveAutomationData, MoveMessageRequest, OpenMessageRequest, OpenResult,
+        OrganizationAction, OrganizationItem, OrganizationOutcome, OrganizationResult,
+        REFERENCE_VERSION, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest,
+        TitlesOutput,
     },
     output, reference,
 };
@@ -70,6 +72,22 @@ pub fn execute(
             }
         }
         Command::Mark(args) => mark(cli, runner, output_writer, timeout, args),
+        Command::Move(args) => organize(
+            cli,
+            runner,
+            output_writer,
+            timeout,
+            args,
+            OrganizationAction::Move,
+        ),
+        Command::Archive(args) => organize(
+            cli,
+            runner,
+            output_writer,
+            timeout,
+            args,
+            OrganizationAction::Archive,
+        ),
         Command::Send(args) => send(cli, runner, input, output_writer, timeout, args),
     }
 }
@@ -481,6 +499,123 @@ fn mark_one(
     })
 }
 
+fn organize(
+    cli: &Cli,
+    runner: &dyn AutomationRunner,
+    writer: &mut dyn Write,
+    timeout: Duration,
+    args: &OrganizeArgs,
+    action: OrganizationAction,
+) -> Result<(), OsaMailError> {
+    let destination = reference::decode_mailbox(&args.to)?;
+    if args.references.len() == 1 {
+        let item = organize_one(
+            runner,
+            timeout,
+            &args.references[0],
+            &destination,
+            args.dry_run,
+        )?;
+        let result = OrganizationResult {
+            action,
+            destination_reference: args.to.clone(),
+            dry_run: args.dry_run,
+            total: 1,
+            succeeded: 1,
+            failed: 0,
+            items: vec![item],
+        };
+        return write_organization_result(cli, writer, &result);
+    }
+
+    let mut items = Vec::with_capacity(args.references.len());
+    let mut succeeded = 0;
+    for message_reference in &args.references {
+        match organize_one(
+            runner,
+            timeout,
+            message_reference,
+            &destination,
+            args.dry_run,
+        ) {
+            Ok(item) => {
+                succeeded += 1;
+                items.push(item);
+            }
+            Err(error) => items.push(OrganizationItem {
+                reference: message_reference.clone(),
+                outcome: None,
+                error: Some(BatchItemError {
+                    code: error.code().to_owned(),
+                    message: error.to_string(),
+                    hint: error.hint().map(str::to_owned),
+                }),
+            }),
+        }
+    }
+    let result = OrganizationResult {
+        action,
+        destination_reference: args.to.clone(),
+        dry_run: args.dry_run,
+        total: items.len(),
+        succeeded,
+        failed: items.len() - succeeded,
+        items,
+    };
+    write_organization_result(cli, writer, &result)
+}
+
+fn organize_one(
+    runner: &dyn AutomationRunner,
+    timeout: Duration,
+    message_reference: &str,
+    destination: &MailboxLocator,
+    dry_run: bool,
+) -> Result<OrganizationItem, OsaMailError> {
+    let locator = reference::decode(message_reference)?;
+    if locator.account != destination.account {
+        return Err(OsaMailError::InvalidArguments(
+            "source and destination accounts must match".to_owned(),
+        ));
+    }
+    let data: MoveAutomationData = run_automation(
+        runner,
+        Script::MoveMessage,
+        &AutomationRequest::MoveMessage(MoveMessageRequest {
+            locator,
+            destination: destination.clone(),
+            dry_run,
+        }),
+        timeout,
+    )?;
+    let outcome = if data.already_there {
+        OrganizationOutcome::AlreadyThere
+    } else if dry_run {
+        OrganizationOutcome::WouldMove
+    } else {
+        OrganizationOutcome::Moved
+    };
+    Ok(OrganizationItem {
+        reference: message_reference.to_owned(),
+        outcome: Some(outcome),
+        error: None,
+    })
+}
+
+fn write_organization_result(
+    cli: &Cli,
+    writer: &mut dyn Write,
+    result: &OrganizationResult,
+) -> Result<(), OsaMailError> {
+    if cli.json {
+        output::write_json_success(writer, result)
+    } else if !cli.quiet {
+        output::write_organization_result(writer, result)
+    } else {
+        Ok(())
+    }
+}
+
 fn send(
     cli: &Cli,
     runner: &dyn AutomationRunner,
@@ -863,6 +998,98 @@ mod tests {
             "MESSAGE_NOT_FOUND"
         );
         assert_eq!(runner.requests.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn archive_dry_run_uses_an_explicit_typed_destination() {
+        let message_reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud 中文".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let destination_reference = reference::encode_mailbox(&MailboxLocator {
+            kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+            version: REFERENCE_VERSION,
+            account: "iCloud 中文".to_owned(),
+            mailbox_path: vec!["Archive".to_owned()],
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "archive",
+            "--to",
+            &destination_reference,
+            &message_reference,
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_there": false}
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let requests = runner.requests.lock().unwrap();
+        assert_eq!(requests[0]["operation"], "move_message");
+        assert_eq!(requests[0]["destination"]["kind"], "mailbox");
+        assert_eq!(requests[0]["destination"]["mailbox_path"][0], "Archive");
+        assert_eq!(requests[0]["dry_run"], true);
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["action"], "archive");
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_move");
+    }
+
+    #[test]
+    fn move_batch_reports_invalid_items_without_skipping_valid_ones() {
+        let message_reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let destination_reference = reference::encode_mailbox(&MailboxLocator {
+            kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+            version: REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Projects".to_owned()],
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "move",
+            "--to",
+            &destination_reference,
+            &message_reference,
+            "invalid-reference",
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_there": false}
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["succeeded"], 1);
+        assert_eq!(value["data"]["failed"], 1);
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_move");
+        assert_eq!(
+            value["data"]["items"][1]["error"]["code"],
+            "INVALID_REFERENCE"
+        );
+        assert_eq!(runner.requests.lock().unwrap().len(), 1);
     }
 
     #[test]

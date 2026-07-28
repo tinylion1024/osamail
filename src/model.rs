@@ -177,6 +177,64 @@ pub struct MarkBatchResult {
     pub items: Vec<MarkBatchItem>,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationAction {
+    Move,
+    Archive,
+}
+
+impl OrganizationAction {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Move => "move",
+            Self::Archive => "archive",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveMessageRequest {
+    pub locator: MessageLocator,
+    pub destination: MailboxLocator,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveAutomationData {
+    pub already_there: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationOutcome {
+    Moved,
+    AlreadyThere,
+    WouldMove,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrganizationItem {
+    #[serde(rename = "ref")]
+    pub reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<OrganizationOutcome>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<BatchItemError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrganizationResult {
+    pub action: OrganizationAction,
+    #[serde(rename = "destination_ref")]
+    pub destination_reference: String,
+    pub dry_run: bool,
+    pub total: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+    pub items: Vec<OrganizationItem>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 pub enum AutomationRequest {
@@ -187,6 +245,7 @@ pub enum AutomationRequest {
     ShowMessage(ShowMessageRequest),
     OpenMessage(OpenMessageRequest),
     MarkMessage(MarkMessageRequest),
+    MoveMessage(MoveMessageRequest),
     SendMessage(SendRequest),
 }
 

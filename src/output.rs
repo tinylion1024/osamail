@@ -6,7 +6,8 @@ use crate::{
     error::OsaMailError,
     model::{
         Account, DoctorReport, MailboxSummary, MarkBatchResult, MarkOutcome, MarkResult,
-        MessageDetail, MessageSummary, SendResult, Success,
+        MessageDetail, MessageSummary, OrganizationOutcome, OrganizationResult, SendResult,
+        Success,
     },
 };
 
@@ -243,6 +244,37 @@ pub fn write_mark_batch_result(
         } else if let Some(error) = &item.error {
             writeln!(writer, "failed\t{}\t{}", item.reference, error.code)?;
         }
+    }
+    Ok(())
+}
+
+pub fn write_organization_result(
+    writer: &mut dyn Write,
+    result: &OrganizationResult,
+) -> Result<(), OsaMailError> {
+    let verb = result.action.as_str();
+    writeln!(
+        writer,
+        "{verb}: {} succeeded, {} failed",
+        result.succeeded, result.failed
+    )?;
+    for item in &result.items {
+        if let Some(outcome) = item.outcome {
+            let outcome = match outcome {
+                OrganizationOutcome::Moved => "moved",
+                OrganizationOutcome::AlreadyThere => "already_there",
+                OrganizationOutcome::WouldMove => "would_move",
+            };
+            writeln!(writer, "{outcome}\t{}", item.reference)?;
+        } else if let Some(error) = &item.error {
+            writeln!(writer, "failed\t{}\t{}", item.reference, error.code)?;
+        }
+    }
+    if !result.dry_run && result.succeeded > 0 {
+        writeln!(
+            writer,
+            "Moved message references may now be stale; list the destination mailbox for fresh references."
+        )?;
     }
     Ok(())
 }

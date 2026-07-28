@@ -80,3 +80,12 @@ adding a separate bulk-command hierarchy. A single-reference invocation keeps
 its existing result shape and error behavior. A multi-reference invocation
 continues after item failures and reports success and failure counts plus an
 ordered result for every input reference.
+
+## ADR-012: Archive is an explicit organization intent
+
+`move` and `archive` share the same secure Mail move operation, but retain
+separate action names in results so scripts and humans can preserve intent.
+Both require a typed mailbox reference from `mailboxes`; OsaMail never guesses a
+localized archive mailbox name. Cross-account moves are rejected, every write is
+gated behind `--dry-run`, and successful moves warn that old message references
+may be stale.

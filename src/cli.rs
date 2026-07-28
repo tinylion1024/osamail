@@ -50,6 +50,10 @@ pub enum Command {
     Open(ReferenceArgs),
     /// Mark up to 50 messages as read, unread, flagged, or unflagged.
     Mark(MarkArgs),
+    /// Move up to 50 messages to an explicitly selected mailbox.
+    Move(OrganizeArgs),
+    /// Archive up to 50 messages in an explicitly selected mailbox.
+    Archive(OrganizeArgs),
     /// Send a plain-text message through an Apple Mail account.
     Send(SendArgs),
 }
@@ -63,6 +67,8 @@ impl Command {
             | Self::Unread(_)
             | Self::Show(_)
             | Self::Mark(_)
+            | Self::Move(_)
+            | Self::Archive(_)
             | Self::Send(_) => 20,
             Self::Search(_) => 30,
         }
@@ -74,6 +80,7 @@ impl Command {
             Self::Recent(_) | Self::Unread(_) | Self::Search(_) => Some("Searching Apple Mail..."),
             Self::Show(_) => Some("Reading message from Apple Mail..."),
             Self::Mark(_) => Some("Checking message in Apple Mail..."),
+            Self::Move(_) | Self::Archive(_) => Some("Organizing messages in Apple Mail..."),
             Self::Doctor | Self::Accounts | Self::Open(_) | Self::Send(_) => None,
         }
     }
@@ -183,6 +190,19 @@ pub struct MarkArgs {
     #[arg(value_name = "REF", num_args = 1..=50)]
     pub references: Vec<String>,
     /// Validate the message and report the outcome without changing Mail.
+    #[arg(long)]
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct OrganizeArgs {
+    /// Opaque mailbox reference returned by mailboxes.
+    #[arg(long, value_name = "MAILBOX_REF")]
+    pub to: String,
+    /// Opaque message references returned by recent, unread, or search.
+    #[arg(value_name = "REF", num_args = 1..=50)]
+    pub references: Vec<String>,
+    /// Validate messages and the destination without moving anything.
     #[arg(long)]
     pub dry_run: bool,
 }
@@ -336,6 +356,29 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn move_and_archive_share_one_explicit_destination_shape() {
+        for command in ["move", "archive"] {
+            let cli = Cli::try_parse_from([
+                "osamail",
+                command,
+                "--to",
+                "mailbox-ref",
+                "message-one",
+                "message-two",
+                "--dry-run",
+            ])
+            .unwrap();
+            let args = match cli.command {
+                Command::Move(args) | Command::Archive(args) => args,
+                _ => panic!("expected organization command"),
+            };
+            assert_eq!(args.to, "mailbox-ref");
+            assert_eq!(args.references, ["message-one", "message-two"]);
+            assert!(args.dry_run);
+        }
     }
 
     #[test]
