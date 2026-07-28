@@ -108,8 +108,8 @@ brew install tinylion1024/tap/osamail
 下载通用 macOS 压缩包及旁边的 SHA-256 文件：
 
 ```bash
-tar -xzf osamail-v0.3.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.3.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.4.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.4.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -119,7 +119,7 @@ osamail --version
 
 ### Cargo
 
-0.3.0 发布到 crates.io 后，可运行：
+0.4.0 发布到 crates.io 后，可运行：
 
 ```bash
 cargo install osamail
@@ -138,7 +138,7 @@ cargo install --path .
 - 运行 OsaMail 的终端、IDE 或应用已获得自动化权限。
 - 仅从源码构建时需要 Rust 1.85 或更高版本。
 
-OsaMail 0.3.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
+OsaMail 0.4.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
 
 ## 常用工作流
 
@@ -279,8 +279,9 @@ unread_count="$(osamail unread --count --json | jq -r '.data.count')"
 `--quiet` 不会隐藏错误，也不会阻止明确请求的 JSON 输出。在交互式终端中，读取
 时间较长时会在 stderr 延迟显示一条状态提示；管道、JSON 和静默输出不受影响。
 
-现有 0.2.0 字段名称保持稳定；邮件状态结果字段从 0.3.0 开始引入。根据响应模型，
-可选的 Mail 值可能为 `null` 或被省略。
+现有 0.2.0 字段名称保持稳定；邮件状态结果字段从 0.3.0 开始引入，邮箱与整理
+结果字段从 0.4.0 开始引入。根据响应模型，可选的 Mail 值可能为 `null` 或被
+省略。
 
 ## macOS 自动化权限
 

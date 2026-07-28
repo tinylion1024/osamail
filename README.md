@@ -112,8 +112,8 @@ Download the universal macOS archive and adjacent SHA-256 file from
 [GitHub Releases](https://github.com/tinylion1024/osamail/releases):
 
 ```bash
-tar -xzf osamail-v0.3.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.3.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.4.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.4.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -123,7 +123,7 @@ common choice on Apple Silicon.
 
 ### Cargo
 
-After version 0.3.0 is available on crates.io:
+After version 0.4.0 is available on crates.io:
 
 ```bash
 cargo install osamail
@@ -142,7 +142,7 @@ cargo install --path .
 - Automation permission for the terminal, IDE, or application running OsaMail.
 - Rust 1.85 or newer only when building from source.
 
-OsaMail 0.3.0 has been developed and live-tested against Mail 16.0 on macOS
+OsaMail 0.4.0 has been developed and live-tested against Mail 16.0 on macOS
 15.3.
 
 ## Common workflows
@@ -291,8 +291,9 @@ terminal, slow read commands print one delayed status message to stderr. Piped,
 JSON, and quiet output remain unchanged.
 
 Existing 0.2.0 field names remain stable. Message-state result fields are
-introduced in 0.3.0. Optional Mail values may be `null` or omitted depending on
-the response model.
+introduced in 0.3.0; mailbox and organization result fields are introduced in
+0.4.0. Optional Mail values may be `null` or omitted depending on the response
+model.
 
 ## macOS Automation permission
 
