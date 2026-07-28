@@ -34,21 +34,26 @@ Last updated: 2026-07-29
   concise workflow and FAQ sections.
 - [x] Published a bounded roadmap for the v0.2.0, v0.3.0, and v0.4.0 release
   sequence.
+- [x] Prepared OsaMail 0.3.0 with one `mark` command for read, unread, flag,
+  and unflag actions, including validation-only dry runs and idempotent
+  outcomes.
+- [x] Documented the message-state workflow in both READMEs without adding
+  another top-level concept.
 
 ## Fresh validation evidence
 
 - `cargo fmt --all -- --check`: passed.
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed.
-- `cargo test --all-features`: 42 passed, 0 failed; 5 opt-in macOS tests ignored.
+- `cargo test --all-features`: 47 passed, 0 failed; 6 opt-in macOS tests ignored.
 - `cargo test --doc`: passed.
-- `cargo build --release --locked`: passed for OsaMail 0.2.0.
-- `cargo package --allow-dirty`: passed for 45 packaged files.
+- `cargo build --release --locked`: passed for OsaMail 0.3.0.
+- `cargo package --allow-dirty`: passed for 46 packaged files.
 - Exact `cargo publish --dry-run`: passed; no upload occurred.
-- `./scripts/check.sh`: passed, including all six JXA syntax checks, release
+- `./scripts/check.sh`: passed, including all seven JXA syntax checks, release
   build, package, and publish dry-run checks.
 - `./scripts/smoke-test.sh`: passed.
 - `./scripts/build-universal.sh`: passed; the produced Mach-O contains both
-  `arm64` and `x86_64`, and reports `osamail 0.2.0`.
+  `arm64` and `x86_64`, and reports `osamail 0.3.0`.
 - Source install and universal-archive install into isolated temporary prefixes:
   passed.
 - `OSAMAIL_INTEGRATION=1 cargo test --test macos_integration -- --ignored
@@ -79,5 +84,11 @@ Last updated: 2026-07-29
 - The complete required local check sequence passed again on 2026-07-29 from
   release commit `3f93c39`, including package verification, publish dry-run,
   smoke tests, and the universal archive checksum check.
+- The complete required local check sequence passed for OsaMail 0.3.0 on
+  release-candidate commit `296db4c`, including 47 tests, seven embedded JXA
+  syntax checks, 46 packaged files, publish dry-run, smoke tests, and a
+  universal `arm64`/`x86_64` archive reporting `osamail 0.3.0`.
+- A live, privacy-preserving `mark read --dry-run --json` acceptance check and
+  its opt-in macOS integration test passed without changing message state.
 
 Validation results are recorded only after the command has completed.
