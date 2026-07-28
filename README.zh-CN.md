@@ -293,6 +293,7 @@ OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、�
 
 ## 项目
 
+- [v0.4.0 前的版本路线图](ROADMAP.md)
 - [参与贡献](CONTRIBUTING.md)
 - [架构说明](docs/architecture.md)
 - [发布指南](docs/releasing.md)

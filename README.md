@@ -309,6 +309,7 @@ Large-mailbox and body searches may require a larger `--timeout`.
 
 ## Project
 
+- [Roadmap through v0.4.0](ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
 - [Architecture](docs/architecture.md)
 - [Release guide](docs/releasing.md)

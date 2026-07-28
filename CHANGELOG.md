@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Add a public roadmap defining the product and release boundaries through
+  v0.4.0.
+
 ## [0.2.0] - 2026-07-27
 
 ### Added
