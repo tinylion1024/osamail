@@ -7,6 +7,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Added
+
+- Add `mailboxes` discovery with exact account filtering, nested paths, and
+  opaque destination references.
+
 ## [0.3.0] - 2026-07-29
 
 ### Added

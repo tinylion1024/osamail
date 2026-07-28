@@ -39,6 +39,8 @@ message state.
 
 ## v0.4.0 — organize messages
 
+Status: in development.
+
 - List mailbox names and paths for exact destination discovery.
 - Move messages to an explicitly selected mailbox.
 - Provide an archive workflow without assuming that every account exposes the

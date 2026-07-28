@@ -44,6 +44,14 @@ fn accounts() {
 
 #[test]
 #[ignore = "requires macOS Automation permission and configured Apple Mail accounts"]
+fn mailboxes() {
+    if let Some(output) = run_read_only(&["mailboxes", "--json"]) {
+        assert_success(output);
+    }
+}
+
+#[test]
+#[ignore = "requires macOS Automation permission and configured Apple Mail accounts"]
 fn recent_limit_one() {
     if let Some(output) = run_read_only(&["recent", "--limit", "1", "--json"]) {
         assert_success(output);

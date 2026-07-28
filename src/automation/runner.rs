@@ -27,6 +27,7 @@ pub trait AutomationRunner {
 pub enum Script {
     Doctor,
     Accounts,
+    ListMailboxes,
     ListMessages,
     ShowMessage,
     OpenMessage,
@@ -39,6 +40,7 @@ impl Script {
         match self {
             Self::Doctor => include_str!("scripts/doctor.js"),
             Self::Accounts => include_str!("scripts/accounts.js"),
+            Self::ListMailboxes => include_str!("scripts/list_mailboxes.js"),
             Self::ListMessages => include_str!("scripts/list_messages.js"),
             Self::ShowMessage => include_str!("scripts/show_message.js"),
             Self::OpenMessage => include_str!("scripts/open_message.js"),

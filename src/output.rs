@@ -5,8 +5,8 @@ use serde::Serialize;
 use crate::{
     error::OsaMailError,
     model::{
-        Account, DoctorReport, MarkOutcome, MarkResult, MessageDetail, MessageSummary, SendResult,
-        Success,
+        Account, DoctorReport, MailboxSummary, MarkOutcome, MarkResult, MessageDetail,
+        MessageSummary, SendResult, Success,
     },
 };
 
@@ -14,6 +14,21 @@ use crate::{
 struct ErrorEnvelope<'a> {
     ok: bool,
     error: ErrorBody<'a>,
+}
+
+pub fn write_mailboxes(
+    writer: &mut dyn Write,
+    mailboxes: &[MailboxSummary],
+) -> Result<(), OsaMailError> {
+    if mailboxes.is_empty() {
+        writeln!(writer, "No Apple Mail mailboxes found.")?;
+        return Ok(());
+    }
+    for mailbox in mailboxes {
+        writeln!(writer, "{}\t{}", mailbox.account, mailbox.path.join(" / "))?;
+        writeln!(writer, "  ref: {}", mailbox.reference)?;
+    }
+    Ok(())
 }
 
 #[derive(Serialize)]

@@ -64,3 +64,11 @@ mutually exclusive flags. Every action accepts `--dry-run`, resolves the same
 opaque locator used by `show` and `open`, and reports whether the state changed,
 was already set, or would change. The embedded script gates all property writes
 behind the dry-run check; default and CI tests never mutate real mail.
+
+## ADR-010: Mailbox destinations use typed opaque references
+
+The `mailboxes` command recursively discovers account mailbox paths and emits a
+versioned, URL-safe reference with an explicit `mailbox` kind. Organization
+commands consume that reference instead of parsing localized names or ambiguous
+path strings. Message and mailbox references are decoded by separate validators,
+so one cannot be accepted accidentally in place of the other.

@@ -9,15 +9,18 @@ use serde::{Serialize, de::DeserializeOwned};
 use crate::{
     automation::{AutomationRunner, Script},
     cli::{
-        Cli, Command, ListArgs, MarkActionArg, MarkArgs, SearchArgs, SendArgs, ShowArgs, UnreadArgs,
+        Cli, Command, ListArgs, MailboxesArgs, MarkActionArg, MarkArgs, SearchArgs, SendArgs,
+        ShowArgs, UnreadArgs,
     },
     error::OsaMailError,
     model::{
         AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, CountOutput,
-        DoctorAutomationData, DoctorCheck, DoctorReport, ListMessagesRequest, ListMode, MarkAction,
+        DoctorAutomationData, DoctorCheck, DoctorReport, ListMailboxesRequest, ListMessagesRequest,
+        ListMode, MailboxLocator, MailboxSummary, MailboxesData, MailboxesOutput, MarkAction,
         MarkAutomationData, MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail,
         MessageSummary, MessagesData, MessagesOutput, OpenMessageRequest, OpenResult,
-        RawMessageDetail, SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
+        REFERENCE_VERSION, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest,
+        TitlesOutput,
     },
     output, reference,
 };
@@ -43,6 +46,7 @@ pub fn execute(
     match &cli.command {
         Command::Doctor => doctor(cli, runner, output_writer, timeout),
         Command::Accounts => accounts(cli, runner, output_writer, timeout),
+        Command::Mailboxes(args) => mailboxes(cli, runner, output_writer, timeout, args),
         Command::Recent(args) => list_recent(cli, runner, output_writer, timeout, args),
         Command::Unread(args) => unread(cli, runner, output_writer, timeout, args),
         Command::Search(args) => search(cli, runner, output_writer, timeout, args),
@@ -67,6 +71,53 @@ pub fn execute(
         }
         Command::Mark(args) => mark(cli, runner, output_writer, timeout, args),
         Command::Send(args) => send(cli, runner, input, output_writer, timeout, args),
+    }
+}
+
+fn mailboxes(
+    cli: &Cli,
+    runner: &dyn AutomationRunner,
+    writer: &mut dyn Write,
+    timeout: Duration,
+    args: &MailboxesArgs,
+) -> Result<(), OsaMailError> {
+    let data: MailboxesData = run_automation(
+        runner,
+        Script::ListMailboxes,
+        &AutomationRequest::ListMailboxes(ListMailboxesRequest {
+            account: args.account.clone(),
+        }),
+        timeout,
+    )?;
+    let mut mailboxes = data
+        .mailboxes
+        .into_iter()
+        .map(|raw| {
+            let locator = MailboxLocator {
+                kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+                version: REFERENCE_VERSION,
+                account: raw.account.clone(),
+                mailbox_path: raw.path.clone(),
+            };
+            Ok(MailboxSummary {
+                reference: reference::encode_mailbox(&locator)?,
+                account: raw.account,
+                path: raw.path,
+            })
+        })
+        .collect::<Result<Vec<_>, OsaMailError>>()?;
+    mailboxes.sort_by(|left, right| {
+        left.account
+            .cmp(&right.account)
+            .then_with(|| left.path.cmp(&right.path))
+    });
+
+    if cli.json {
+        output::write_json_success(writer, MailboxesOutput { mailboxes })
+    } else if !cli.quiet {
+        output::write_mailboxes(writer, &mailboxes)
+    } else {
+        Ok(())
     }
 }
 
@@ -587,6 +638,35 @@ mod tests {
         execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
         let value: Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(value["data"]["count"], 9);
+    }
+
+    #[test]
+    fn mailboxes_emit_sorted_opaque_destination_references() {
+        let cli =
+            Cli::try_parse_from(["osamail", "mailboxes", "--account", "iCloud 中文", "--json"])
+                .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {
+                "mailboxes": [
+                    {"account": "iCloud 中文", "path": ["项目", "归档"]},
+                    {"account": "iCloud 中文", "path": ["Inbox"]}
+                ]
+            }
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let requests = runner.requests.lock().unwrap();
+        assert_eq!(requests[0]["operation"], "list_mailboxes");
+        assert_eq!(requests[0]["account"], "iCloud 中文");
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["mailboxes"][0]["path"][0], "Inbox");
+        let mailbox_reference = value["data"]["mailboxes"][1]["ref"].as_str().unwrap();
+        let locator = reference::decode_mailbox(mailbox_reference).unwrap();
+        assert_eq!(locator.account, "iCloud 中文");
+        assert_eq!(locator.mailbox_path, ["项目", "归档"]);
     }
 
     #[test]

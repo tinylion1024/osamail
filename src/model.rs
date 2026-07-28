@@ -10,6 +10,22 @@ pub struct Account {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxLocator {
+    pub kind: String,
+    pub version: u8,
+    pub account: String,
+    pub mailbox_path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxSummary {
+    #[serde(rename = "ref")]
+    pub reference: String,
+    pub account: String,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageLocator {
     pub version: u8,
     pub account: String,
@@ -138,11 +154,17 @@ pub struct MarkResult {
 pub enum AutomationRequest {
     Doctor,
     Accounts,
+    ListMailboxes(ListMailboxesRequest),
     ListMessages(ListMessagesRequest),
     ShowMessage(ShowMessageRequest),
     OpenMessage(OpenMessageRequest),
     MarkMessage(MarkMessageRequest),
     SendMessage(SendRequest),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListMailboxesRequest {
+    pub account: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -228,6 +250,17 @@ pub struct AccountsData {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxesData {
+    pub mailboxes: Vec<RawMailboxSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RawMailboxSummary {
+    pub account: String,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessagesData {
     #[serde(default)]
     pub messages: Vec<RawMessageSummary>,
@@ -256,6 +289,11 @@ impl<T> Success<T> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccountsOutput {
     pub accounts: Vec<Account>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxesOutput {
+    pub mailboxes: Vec<MailboxSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

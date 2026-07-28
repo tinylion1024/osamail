@@ -36,6 +36,8 @@ pub enum Command {
     Doctor,
     /// List accounts already configured in Apple Mail.
     Accounts,
+    /// List mailbox paths and destination references.
+    Mailboxes(MailboxesArgs),
     /// List recently received messages without loading bodies.
     Recent(ListArgs),
     /// List unread messages or print their count.
@@ -56,19 +58,32 @@ impl Command {
     pub const fn default_timeout_seconds(&self) -> u64 {
         match self {
             Self::Doctor | Self::Accounts | Self::Open(_) => 10,
-            Self::Recent(_) | Self::Unread(_) | Self::Show(_) | Self::Mark(_) | Self::Send(_) => 20,
+            Self::Mailboxes(_)
+            | Self::Recent(_)
+            | Self::Unread(_)
+            | Self::Show(_)
+            | Self::Mark(_)
+            | Self::Send(_) => 20,
             Self::Search(_) => 30,
         }
     }
 
     pub const fn progress_message(&self) -> Option<&'static str> {
         match self {
+            Self::Mailboxes(_) => Some("Reading mailboxes from Apple Mail..."),
             Self::Recent(_) | Self::Unread(_) | Self::Search(_) => Some("Searching Apple Mail..."),
             Self::Show(_) => Some("Reading message from Apple Mail..."),
             Self::Mark(_) => Some("Checking message in Apple Mail..."),
             Self::Doctor | Self::Accounts | Self::Open(_) | Self::Send(_) => None,
         }
     }
+}
+
+#[derive(Debug, Args)]
+pub struct MailboxesArgs {
+    /// Restrict results to an exact Apple Mail account name.
+    #[arg(long)]
+    pub account: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -299,6 +314,7 @@ mod tests {
     #[test]
     fn read_commands_expose_delayed_progress_messages() {
         let recent = Cli::try_parse_from(["osamail", "recent"]).unwrap();
+        let mailboxes = Cli::try_parse_from(["osamail", "mailboxes"]).unwrap();
         let show = Cli::try_parse_from(["osamail", "show", "message-ref"]).unwrap();
         let accounts = Cli::try_parse_from(["osamail", "accounts"]).unwrap();
 
@@ -307,10 +323,24 @@ mod tests {
             Some("Searching Apple Mail...")
         );
         assert_eq!(
+            mailboxes.command.progress_message(),
+            Some("Reading mailboxes from Apple Mail...")
+        );
+        assert_eq!(
             show.command.progress_message(),
             Some("Reading message from Apple Mail...")
         );
         assert_eq!(accounts.command.progress_message(), None);
+    }
+
+    #[test]
+    fn mailboxes_accepts_an_exact_account_filter() {
+        let cli =
+            Cli::try_parse_from(["osamail", "mailboxes", "--account", "iCloud 中文"]).unwrap();
+        match cli.command {
+            Command::Mailboxes(args) => assert_eq!(args.account.as_deref(), Some("iCloud 中文")),
+            _ => panic!("expected mailboxes"),
+        }
     }
 
     #[test]
