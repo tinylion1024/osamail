@@ -7,15 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-29
+
 ### Added
 
 - Add a public roadmap defining the product and release boundaries through
   v0.4.0.
-
-## [0.2.0] - 2026-07-27
-
-### Added
-
 - Add `--titles` to recent, unread, and search commands for minimal
   subject-only output and reduced Apple Mail property reads.
 - Add delayed, TTY-only progress feedback for Apple Mail read operations
