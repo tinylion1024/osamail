@@ -14,9 +14,10 @@ osamail doctor
 osamail unread --titles
 ```
 
-OsaMail 支持列出、搜索、查看、打开、标记邮件，以及发送纯文本邮件。它既提供
-适合人类阅读的终端输出，也提供适合脚本的结构化 JSON。OsaMail 不是独立邮件
-客户端，也不会直接连接 Gmail、iCloud Mail、Exchange 或其他邮件服务商。
+OsaMail 支持列出、搜索、查看、打开、标记、整理邮件，以及发送纯文本邮件。
+移动邮件前，还可以发现嵌套邮箱。它既提供适合人类阅读的终端输出，也提供适合
+脚本的结构化 JSON。OsaMail 不是独立邮件客户端，也不会直接连接 Gmail、
+iCloud Mail、Exchange 或其他邮件服务商。
 
 ## 为什么选择 OsaMail？
 
@@ -27,6 +28,7 @@ OsaMail 支持列出、搜索、查看、打开、标记邮件，以及发送纯
 | 不想再走一套凭据授权流程 | 使用已在 Apple Mail 中完成认证的账户 |
 | 希望邮件访问保持在本地 | 无遥测、不访问 Mail 私有数据库、不主动联网 |
 | 明确控制邮件状态 | 一个 `mark` 命令，并提供不做修改的 `--dry-run` 演练 |
+| 明确整理邮件 | 发现邮箱引用，预演移动，再正式执行 |
 | 发送前保持可控 | 支持纯文本发送和“不发送”的 `--dry-run` 演练 |
 
 OsaMail 适合开发者、自动化工作流，以及希望用轻量命令行代替另一个邮件应用的
@@ -59,12 +61,20 @@ osamail open <ref>
 osamail mark read <ref> --dry-run
 ```
 
+目标邮箱使用另一种不透明引用。先发现目标，再预演移动：
+
+```bash
+osamail mailboxes
+osamail move --to <mailbox-ref> <ref> --dry-run
+```
+
 ## 按目标选择命令
 
 | 目标 | 命令 |
 | --- | --- |
 | 检查运行环境 | `osamail doctor` |
 | 列出 Mail 中的账户 | `osamail accounts` |
+| 发现目标邮箱 | `osamail mailboxes` |
 | 列出最近邮件 | `osamail recent` |
 | 列出未读邮件 | `osamail unread` |
 | 统计未读邮件 | `osamail unread --count` |
@@ -73,7 +83,10 @@ osamail mark read <ref> --dry-run
 | 在终端阅读邮件 | `osamail show <ref>` |
 | 在 Apple Mail 中打开邮件 | `osamail open <ref>` |
 | 预演邮件状态修改 | `osamail mark read <ref> --dry-run` |
-| 修改已读或旗标状态 | `osamail mark <action> <ref>` |
+| 修改已读或旗标状态 | `osamail mark <action> <ref>...` |
+| 预演移动邮件 | `osamail move --to <mailbox-ref> <ref> --dry-run` |
+| 移动邮件 | `osamail move --to <mailbox-ref> <ref>...` |
+| 归档到明确指定的邮箱 | `osamail archive --to <mailbox-ref> <ref>...` |
 | 不发送，只验证邮件参数 | `osamail send ... --dry-run` |
 | 发送纯文本邮件 | `osamail send ...` |
 
@@ -191,11 +204,35 @@ osamail mark read <ref>
 osamail mark unread <ref>
 osamail mark flag <ref>
 osamail mark unflag <ref>
+osamail mark read <ref-1> <ref-2>
 ```
 
 四种操作分别是 `read`、`unread`、`flag` 和 `unflag`。结果会明确区分
 `changed`、`already_set` 和 `would_change`，方便脚本保持幂等，也让演练结果
-一目了然。默认测试和 CI 绝不会修改真实邮件。
+一目了然。重复提供邮件引用可一次处理最多 50 封邮件；批量结果会分别报告每一项
+成功或失败。默认测试和 CI 绝不会修改真实邮件。
+
+### 安全整理邮件
+
+先发现准确目标，再预演操作：
+
+```bash
+osamail mailboxes
+osamail mailboxes --account "Personal"
+osamail move --to <mailbox-ref> <ref-1> <ref-2> --dry-run
+osamail move --to <mailbox-ref> <ref-1> <ref-2>
+```
+
+希望结果明确标记为归档操作时，使用 `archive`：
+
+```bash
+osamail archive --to <archive-mailbox-ref> <ref> --dry-run
+osamail archive --to <archive-mailbox-ref> <ref>
+```
+
+两个命令都要求使用 `mailboxes` 返回的邮箱引用；OsaMail 不会猜测本地化后的
+“归档”邮箱名称。一次最多可以处理 50 个邮件引用，批量结果会分别报告每一项。
+实际移动后，旧邮件引用可能失效，因此请重新列出邮件。
 
 ### 安全发送
 
@@ -300,14 +337,20 @@ Rust → /usr/bin/osascript → 内嵌 JXA → Apple Mail
 可以。运行 `osamail mark read <ref>`；建议先添加 `--dry-run` 预演结果，不修改
 邮件。同一个命令也支持 `unread`、`flag` 和 `unflag`。
 
+### OsaMail 能移动或归档邮件吗？
+
+可以。先运行 `osamail mailboxes` 获取明确的目标邮箱引用，再用 `move` 或
+`archive` 的 `--to` 参数。建议先添加 `--dry-run`；OsaMail 不会猜测哪个本地化
+邮箱应该视为“归档”。
+
 ### OsaMail 能在 Linux 或 Windows 上使用吗？
 
 邮件操作需要 macOS 和 Apple Mail。`--help` 与 `--version` 仍可在其他平台使用。
 
 ## 当前限制
 
-OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、移动、归档、规则、
-后台通知、签名或加密。发布产物尚未进行代码签名或公证。
+OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、规则、后台通知、
+签名或加密。发布产物尚未进行代码签名或公证。
 
 `open` 和窗口聚焦效果取决于 Apple Mail 的脚本行为及当前界面状态。大型邮箱或
 正文搜索可能需要更大的 `--timeout`。
