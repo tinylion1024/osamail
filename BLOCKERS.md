@@ -1,18 +1,15 @@
 # External blockers
 
-## Open: crates.io publishing authorization
+## Resolved: crates.io publishing authorization
 
-Status: open since 2026-07-29
+Status: resolved on 2026-07-29
 
-The local release environment can access GitHub but has no crates.io API token.
-`cargo owner --list osamail` currently returns `no token found`, so the
-sequential v0.2.0, v0.3.0, and v0.4.0 publication cannot begin.
+The crates.io API token is installed and the account email address is verified.
+OsaMail 0.2.0 and 0.3.0 were published successfully and verified by installing
+each version from the public registry.
 
-The repository and every release candidate pass `cargo publish --dry-run`; no
-secret is required for those checks. To unlock the real publication, the
-repository owner must run `cargo login` locally with a crates.io API token.
-Tokens must never be committed, pasted into project files, or shared in issue
-or pull-request text.
+Tokens remain outside the repository and must never be committed, pasted into
+project files, or shared in issue or pull-request text.
 
 ## Resolved: live Apple Mail automation authorization
 
