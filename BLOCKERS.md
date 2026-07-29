@@ -1,6 +1,16 @@
 # External blockers
 
-No external blockers are currently open.
+## Open: crates.io email verification
+
+Status: open since 2026-07-29
+
+The crates.io API token is installed and accepted, but the first
+`cargo publish --locked` attempt for OsaMail 0.2.0 returned HTTP 400 because
+the crates.io account does not have a verified email address.
+
+The account owner must add and verify an email address at
+<https://crates.io/settings/profile>. No package was uploaded, and no release
+tag was created.
 
 ## Resolved: live Apple Mail automation authorization
 
