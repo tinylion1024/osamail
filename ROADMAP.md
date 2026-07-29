@@ -6,7 +6,7 @@ safe by default, and suitable for shell automation.
 
 ## v0.2.0 — faster reading
 
-Status: release candidate.
+Status: released on 2026-07-29.
 
 - Print message subjects only with `--titles`.
 - Show delayed progress feedback for slow interactive reads.
@@ -24,7 +24,7 @@ Release gate:
 
 ## v0.3.0 — explicit message state
 
-Status: release candidate.
+Status: released on 2026-07-29.
 
 - Add one discoverable `mark` command with `read`, `unread`, `flag`, and
   `unflag` actions.
@@ -39,7 +39,7 @@ message state.
 
 ## v0.4.0 — organize messages
 
-Status: release candidate.
+Status: released on 2026-07-29.
 
 - List mailbox names and paths for exact destination discovery.
 - Move messages to an explicitly selected mailbox.

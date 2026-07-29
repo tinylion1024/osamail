@@ -5,8 +5,8 @@
 Status: resolved on 2026-07-29
 
 The crates.io API token is installed and the account email address is verified.
-OsaMail 0.2.0 and 0.3.0 were published successfully and verified by installing
-each version from the public registry.
+OsaMail 0.2.0, 0.3.0, and 0.4.0 were published successfully and verified by
+installing each version from the public registry.
 
 Tokens remain outside the repository and must never be committed, pasted into
 project files, or shared in issue or pull-request text.

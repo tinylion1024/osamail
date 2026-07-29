@@ -101,5 +101,13 @@ Last updated: 2026-07-29
   release-candidate commit `551cc79`, including 57 tests, nine embedded JXA
   syntax checks, 48 packaged files, publish dry-run, smoke tests, and a
   universal `arm64`/`x86_64` archive reporting `osamail 0.4.0`.
+- OsaMail 0.2.0, 0.3.0, and 0.4.0 were published sequentially to crates.io and
+  verified by clean installs from the public registry.
+- GitHub Releases for `v0.2.0`, `v0.3.0`, and `v0.4.0` published successfully
+  with universal macOS archives and SHA-256 checksum files.
+- Each release workflow installed and tested its generated Homebrew formula
+  before updating `tinylion1024/homebrew-tap`; the tap now distributes
+  OsaMail 0.4.0 with checksum
+  `3ff1404fee397cfc683930baa7864f594e19c5a3746da77afdda63e87c96b19e`.
 
 Validation results are recorded only after the command has completed.
