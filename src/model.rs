@@ -10,6 +10,22 @@ pub struct Account {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxLocator {
+    pub kind: String,
+    pub version: u8,
+    pub account: String,
+    pub mailbox_path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxSummary {
+    #[serde(rename = "ref")]
+    pub reference: String,
+    pub account: String,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessageLocator {
     pub version: u8,
     pub account: String,
@@ -134,15 +150,108 @@ pub struct MarkResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct BatchItemError {
+    pub code: String,
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hint: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkBatchItem {
+    #[serde(rename = "ref")]
+    pub reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<MarkOutcome>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<BatchItemError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MarkBatchResult {
+    pub action: MarkAction,
+    pub dry_run: bool,
+    pub total: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+    pub items: Vec<MarkBatchItem>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationAction {
+    Move,
+    Archive,
+}
+
+impl OrganizationAction {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Move => "move",
+            Self::Archive => "archive",
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveMessageRequest {
+    pub locator: MessageLocator,
+    pub destination: MailboxLocator,
+    pub dry_run: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MoveAutomationData {
+    pub already_there: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum OrganizationOutcome {
+    Moved,
+    AlreadyThere,
+    WouldMove,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrganizationItem {
+    #[serde(rename = "ref")]
+    pub reference: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<OrganizationOutcome>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<BatchItemError>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OrganizationResult {
+    pub action: OrganizationAction,
+    #[serde(rename = "destination_ref")]
+    pub destination_reference: String,
+    pub dry_run: bool,
+    pub total: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+    pub items: Vec<OrganizationItem>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case")]
 pub enum AutomationRequest {
     Doctor,
     Accounts,
+    ListMailboxes(ListMailboxesRequest),
     ListMessages(ListMessagesRequest),
     ShowMessage(ShowMessageRequest),
     OpenMessage(OpenMessageRequest),
     MarkMessage(MarkMessageRequest),
+    MoveMessage(MoveMessageRequest),
     SendMessage(SendRequest),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ListMailboxesRequest {
+    pub account: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -228,6 +337,17 @@ pub struct AccountsData {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxesData {
+    pub mailboxes: Vec<RawMailboxSummary>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct RawMailboxSummary {
+    pub account: String,
+    pub path: Vec<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct MessagesData {
     #[serde(default)]
     pub messages: Vec<RawMessageSummary>,
@@ -256,6 +376,11 @@ impl<T> Success<T> {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AccountsOutput {
     pub accounts: Vec<Account>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct MailboxesOutput {
+    pub mailboxes: Vec<MailboxSummary>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

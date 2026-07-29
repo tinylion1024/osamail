@@ -9,15 +9,20 @@ use serde::{Serialize, de::DeserializeOwned};
 use crate::{
     automation::{AutomationRunner, Script},
     cli::{
-        Cli, Command, ListArgs, MarkActionArg, MarkArgs, SearchArgs, SendArgs, ShowArgs, UnreadArgs,
+        Cli, Command, ListArgs, MailboxesArgs, MarkActionArg, MarkArgs, OrganizeArgs, SearchArgs,
+        SendArgs, ShowArgs, UnreadArgs,
     },
     error::OsaMailError,
     model::{
-        AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, CountOutput,
-        DoctorAutomationData, DoctorCheck, DoctorReport, ListMessagesRequest, ListMode, MarkAction,
-        MarkAutomationData, MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail,
-        MessageSummary, MessagesData, MessagesOutput, OpenMessageRequest, OpenResult,
-        RawMessageDetail, SendRequest, SendResult, ShowMessageRequest, TitlesOutput,
+        AccountsData, AccountsOutput, AutomationRequest, AutomationResponse, BatchItemError,
+        CountOutput, DoctorAutomationData, DoctorCheck, DoctorReport, ListMailboxesRequest,
+        ListMessagesRequest, ListMode, MailboxLocator, MailboxSummary, MailboxesData,
+        MailboxesOutput, MarkAction, MarkAutomationData, MarkBatchItem, MarkBatchResult,
+        MarkMessageRequest, MarkOutcome, MarkResult, MessageDetail, MessageSummary, MessagesData,
+        MessagesOutput, MoveAutomationData, MoveMessageRequest, OpenMessageRequest, OpenResult,
+        OrganizationAction, OrganizationItem, OrganizationOutcome, OrganizationResult,
+        REFERENCE_VERSION, RawMessageDetail, SendRequest, SendResult, ShowMessageRequest,
+        TitlesOutput,
     },
     output, reference,
 };
@@ -43,6 +48,7 @@ pub fn execute(
     match &cli.command {
         Command::Doctor => doctor(cli, runner, output_writer, timeout),
         Command::Accounts => accounts(cli, runner, output_writer, timeout),
+        Command::Mailboxes(args) => mailboxes(cli, runner, output_writer, timeout, args),
         Command::Recent(args) => list_recent(cli, runner, output_writer, timeout, args),
         Command::Unread(args) => unread(cli, runner, output_writer, timeout, args),
         Command::Search(args) => search(cli, runner, output_writer, timeout, args),
@@ -66,7 +72,70 @@ pub fn execute(
             }
         }
         Command::Mark(args) => mark(cli, runner, output_writer, timeout, args),
+        Command::Move(args) => organize(
+            cli,
+            runner,
+            output_writer,
+            timeout,
+            args,
+            OrganizationAction::Move,
+        ),
+        Command::Archive(args) => organize(
+            cli,
+            runner,
+            output_writer,
+            timeout,
+            args,
+            OrganizationAction::Archive,
+        ),
         Command::Send(args) => send(cli, runner, input, output_writer, timeout, args),
+    }
+}
+
+fn mailboxes(
+    cli: &Cli,
+    runner: &dyn AutomationRunner,
+    writer: &mut dyn Write,
+    timeout: Duration,
+    args: &MailboxesArgs,
+) -> Result<(), OsaMailError> {
+    let data: MailboxesData = run_automation(
+        runner,
+        Script::ListMailboxes,
+        &AutomationRequest::ListMailboxes(ListMailboxesRequest {
+            account: args.account.clone(),
+        }),
+        timeout,
+    )?;
+    let mut mailboxes = data
+        .mailboxes
+        .into_iter()
+        .map(|raw| {
+            let locator = MailboxLocator {
+                kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+                version: REFERENCE_VERSION,
+                account: raw.account.clone(),
+                mailbox_path: raw.path.clone(),
+            };
+            Ok(MailboxSummary {
+                reference: reference::encode_mailbox(&locator)?,
+                account: raw.account,
+                path: raw.path,
+            })
+        })
+        .collect::<Result<Vec<_>, OsaMailError>>()?;
+    mailboxes.sort_by(|left, right| {
+        left.account
+            .cmp(&right.account)
+            .then_with(|| left.path.cmp(&right.path))
+    });
+
+    if cli.json {
+        output::write_json_success(writer, MailboxesOutput { mailboxes })
+    } else if !cli.quiet {
+        output::write_mailboxes(writer, &mailboxes)
+    } else {
+        Ok(())
     }
 }
 
@@ -346,34 +415,202 @@ fn mark(
         MarkActionArg::Flag => MarkAction::Flag,
         MarkActionArg::Unflag => MarkAction::Unflag,
     };
-    let locator = reference::decode(&args.reference)?;
+    if args.references.len() == 1 {
+        let result = mark_one(runner, timeout, &args.references[0], action, args.dry_run)?;
+        return if cli.json {
+            output::write_json_success(writer, result)
+        } else if !cli.quiet {
+            output::write_mark_result(writer, &result)
+        } else {
+            Ok(())
+        };
+    }
+
+    let mut items = Vec::with_capacity(args.references.len());
+    let mut succeeded = 0;
+    for reference in &args.references {
+        match mark_one(runner, timeout, reference, action, args.dry_run) {
+            Ok(result) => {
+                succeeded += 1;
+                items.push(MarkBatchItem {
+                    reference: result.reference,
+                    outcome: Some(result.outcome),
+                    error: None,
+                });
+            }
+            Err(error) => items.push(MarkBatchItem {
+                reference: reference.clone(),
+                outcome: None,
+                error: Some(BatchItemError {
+                    code: error.code().to_owned(),
+                    message: error.to_string(),
+                    hint: error.hint().map(str::to_owned),
+                }),
+            }),
+        }
+    }
+    let result = MarkBatchResult {
+        action,
+        dry_run: args.dry_run,
+        total: items.len(),
+        succeeded,
+        failed: items.len() - succeeded,
+        items,
+    };
+
+    if cli.json {
+        output::write_json_success(writer, result)
+    } else if !cli.quiet {
+        output::write_mark_batch_result(writer, &result)
+    } else {
+        Ok(())
+    }
+}
+
+fn mark_one(
+    runner: &dyn AutomationRunner,
+    timeout: Duration,
+    reference: &str,
+    action: MarkAction,
+    dry_run: bool,
+) -> Result<MarkResult, OsaMailError> {
+    let locator = reference::decode(reference)?;
     let data: MarkAutomationData = run_automation(
         runner,
         Script::MarkMessage,
         &AutomationRequest::MarkMessage(MarkMessageRequest {
             locator,
             action,
-            dry_run: args.dry_run,
+            dry_run,
         }),
         timeout,
     )?;
     let outcome = if data.already_set {
         MarkOutcome::AlreadySet
-    } else if args.dry_run {
+    } else if dry_run {
         MarkOutcome::WouldChange
     } else {
         MarkOutcome::Changed
     };
-    let result = MarkResult {
-        reference: args.reference.clone(),
+    Ok(MarkResult {
+        reference: reference.to_owned(),
         action,
         outcome,
-    };
+    })
+}
 
+fn organize(
+    cli: &Cli,
+    runner: &dyn AutomationRunner,
+    writer: &mut dyn Write,
+    timeout: Duration,
+    args: &OrganizeArgs,
+    action: OrganizationAction,
+) -> Result<(), OsaMailError> {
+    let destination = reference::decode_mailbox(&args.to)?;
+    if args.references.len() == 1 {
+        let item = organize_one(
+            runner,
+            timeout,
+            &args.references[0],
+            &destination,
+            args.dry_run,
+        )?;
+        let result = OrganizationResult {
+            action,
+            destination_reference: args.to.clone(),
+            dry_run: args.dry_run,
+            total: 1,
+            succeeded: 1,
+            failed: 0,
+            items: vec![item],
+        };
+        return write_organization_result(cli, writer, &result);
+    }
+
+    let mut items = Vec::with_capacity(args.references.len());
+    let mut succeeded = 0;
+    for message_reference in &args.references {
+        match organize_one(
+            runner,
+            timeout,
+            message_reference,
+            &destination,
+            args.dry_run,
+        ) {
+            Ok(item) => {
+                succeeded += 1;
+                items.push(item);
+            }
+            Err(error) => items.push(OrganizationItem {
+                reference: message_reference.clone(),
+                outcome: None,
+                error: Some(BatchItemError {
+                    code: error.code().to_owned(),
+                    message: error.to_string(),
+                    hint: error.hint().map(str::to_owned),
+                }),
+            }),
+        }
+    }
+    let result = OrganizationResult {
+        action,
+        destination_reference: args.to.clone(),
+        dry_run: args.dry_run,
+        total: items.len(),
+        succeeded,
+        failed: items.len() - succeeded,
+        items,
+    };
+    write_organization_result(cli, writer, &result)
+}
+
+fn organize_one(
+    runner: &dyn AutomationRunner,
+    timeout: Duration,
+    message_reference: &str,
+    destination: &MailboxLocator,
+    dry_run: bool,
+) -> Result<OrganizationItem, OsaMailError> {
+    let locator = reference::decode(message_reference)?;
+    if locator.account != destination.account {
+        return Err(OsaMailError::InvalidArguments(
+            "source and destination accounts must match".to_owned(),
+        ));
+    }
+    let data: MoveAutomationData = run_automation(
+        runner,
+        Script::MoveMessage,
+        &AutomationRequest::MoveMessage(MoveMessageRequest {
+            locator,
+            destination: destination.clone(),
+            dry_run,
+        }),
+        timeout,
+    )?;
+    let outcome = if data.already_there {
+        OrganizationOutcome::AlreadyThere
+    } else if dry_run {
+        OrganizationOutcome::WouldMove
+    } else {
+        OrganizationOutcome::Moved
+    };
+    Ok(OrganizationItem {
+        reference: message_reference.to_owned(),
+        outcome: Some(outcome),
+        error: None,
+    })
+}
+
+fn write_organization_result(
+    cli: &Cli,
+    writer: &mut dyn Write,
+    result: &OrganizationResult,
+) -> Result<(), OsaMailError> {
     if cli.json {
         output::write_json_success(writer, result)
     } else if !cli.quiet {
-        output::write_mark_result(writer, &result)
+        output::write_organization_result(writer, result)
     } else {
         Ok(())
     }
@@ -590,6 +827,35 @@ mod tests {
     }
 
     #[test]
+    fn mailboxes_emit_sorted_opaque_destination_references() {
+        let cli =
+            Cli::try_parse_from(["osamail", "mailboxes", "--account", "iCloud 中文", "--json"])
+                .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {
+                "mailboxes": [
+                    {"account": "iCloud 中文", "path": ["项目", "归档"]},
+                    {"account": "iCloud 中文", "path": ["Inbox"]}
+                ]
+            }
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let requests = runner.requests.lock().unwrap();
+        assert_eq!(requests[0]["operation"], "list_mailboxes");
+        assert_eq!(requests[0]["account"], "iCloud 中文");
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["mailboxes"][0]["path"][0], "Inbox");
+        let mailbox_reference = value["data"]["mailboxes"][1]["ref"].as_str().unwrap();
+        let locator = reference::decode_mailbox(mailbox_reference).unwrap();
+        assert_eq!(locator.account, "iCloud 中文");
+        assert_eq!(locator.mailbox_path, ["项目", "归档"]);
+    }
+
+    #[test]
     fn unread_count_human_output_is_only_the_number() {
         let cli = Cli::try_parse_from(["osamail", "unread", "--count"]).unwrap();
         let runner = FakeRunner::new(vec![Ok(json!({
@@ -675,6 +941,155 @@ mod tests {
         assert_eq!(value["data"]["action"], "read");
         assert_eq!(value["data"]["outcome"], "would_change");
         assert_eq!(value["data"]["ref"], reference);
+    }
+
+    #[test]
+    fn mark_batch_reports_each_result_and_continues_after_failure() {
+        let first = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 41,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let second = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "mark",
+            "flag",
+            &first,
+            &second,
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![
+            Ok(json!({
+                "ok": true,
+                "data": {"already_set": false}
+            })),
+            Ok(json!({
+                "ok": false,
+                "error": {
+                    "code": "MESSAGE_NOT_FOUND",
+                    "message": "Message not found."
+                }
+            })),
+        ]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["total"], 2);
+        assert_eq!(value["data"]["succeeded"], 1);
+        assert_eq!(value["data"]["failed"], 1);
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_change");
+        assert_eq!(
+            value["data"]["items"][1]["error"]["code"],
+            "MESSAGE_NOT_FOUND"
+        );
+        assert_eq!(runner.requests.lock().unwrap().len(), 2);
+    }
+
+    #[test]
+    fn archive_dry_run_uses_an_explicit_typed_destination() {
+        let message_reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud 中文".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let destination_reference = reference::encode_mailbox(&MailboxLocator {
+            kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+            version: REFERENCE_VERSION,
+            account: "iCloud 中文".to_owned(),
+            mailbox_path: vec!["Archive".to_owned()],
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "archive",
+            "--to",
+            &destination_reference,
+            &message_reference,
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_there": false}
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let requests = runner.requests.lock().unwrap();
+        assert_eq!(requests[0]["operation"], "move_message");
+        assert_eq!(requests[0]["destination"]["kind"], "mailbox");
+        assert_eq!(requests[0]["destination"]["mailbox_path"][0], "Archive");
+        assert_eq!(requests[0]["dry_run"], true);
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["action"], "archive");
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_move");
+    }
+
+    #[test]
+    fn move_batch_reports_invalid_items_without_skipping_valid_ones() {
+        let message_reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let destination_reference = reference::encode_mailbox(&MailboxLocator {
+            kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+            version: REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Projects".to_owned()],
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "move",
+            "--to",
+            &destination_reference,
+            &message_reference,
+            "invalid-reference",
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_there": false}
+        }))]);
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["succeeded"], 1);
+        assert_eq!(value["data"]["failed"], 1);
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_move");
+        assert_eq!(
+            value["data"]["items"][1]["error"]["code"],
+            "INVALID_REFERENCE"
+        );
+        assert_eq!(runner.requests.lock().unwrap().len(), 1);
     }
 
     #[test]

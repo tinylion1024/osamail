@@ -64,3 +64,28 @@ mutually exclusive flags. Every action accepts `--dry-run`, resolves the same
 opaque locator used by `show` and `open`, and reports whether the state changed,
 was already set, or would change. The embedded script gates all property writes
 behind the dry-run check; default and CI tests never mutate real mail.
+
+## ADR-010: Mailbox destinations use typed opaque references
+
+The `mailboxes` command recursively discovers account mailbox paths and emits a
+versioned, URL-safe reference with an explicit `mailbox` kind. Organization
+commands consume that reference instead of parsing localized names or ambiguous
+path strings. Message and mailbox references are decoded by separate validators,
+so one cannot be accepted accidentally in place of the other.
+
+## ADR-011: Batches extend existing action commands
+
+State and organization commands accept one to 50 message references instead of
+adding a separate bulk-command hierarchy. A single-reference invocation keeps
+its existing result shape and error behavior. A multi-reference invocation
+continues after item failures and reports success and failure counts plus an
+ordered result for every input reference.
+
+## ADR-012: Archive is an explicit organization intent
+
+`move` and `archive` share the same secure Mail move operation, but retain
+separate action names in results so scripts and humans can preserve intent.
+Both require a typed mailbox reference from `mailboxes`; OsaMail never guesses a
+localized archive mailbox name. Cross-account moves are rejected, every write is
+gated behind `--dry-run`, and successful moves warn that old message references
+may be stale.

@@ -39,25 +39,32 @@ Last updated: 2026-07-29
   outcomes.
 - [x] Documented the message-state workflow in both READMEs without adding
   another top-level concept.
+- [x] Prepared OsaMail 0.4.0 with recursive mailbox discovery, explicit
+  destination references, bounded message-state batches, and dry-run-first
+  move and archive workflows.
+- [x] Documented mailbox discovery and organization in synchronized English
+  and Simplified Chinese workflows without guessing localized Archive names.
 
 ## Fresh validation evidence
 
 - `cargo fmt --all -- --check`: passed.
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed.
-- `cargo test --all-features`: 47 passed, 0 failed; 6 opt-in macOS tests ignored.
+- `cargo test --all-features`: 57 passed, 0 failed across library, binary, and
+  CLI tests; 8 opt-in macOS tests ignored.
 - `cargo test --doc`: passed.
-- `cargo build --release --locked`: passed for OsaMail 0.3.0.
-- `cargo package --allow-dirty`: passed for 46 packaged files.
+- `cargo build --release --locked`: passed for OsaMail 0.4.0.
+- `cargo package --allow-dirty`: passed for 48 packaged files.
 - Exact `cargo publish --dry-run`: passed; no upload occurred.
-- `./scripts/check.sh`: passed, including all seven JXA syntax checks, release
+- `./scripts/check.sh`: passed, including all nine JXA syntax checks, release
   build, package, and publish dry-run checks.
 - `./scripts/smoke-test.sh`: passed.
 - `./scripts/build-universal.sh`: passed; the produced Mach-O contains both
-  `arm64` and `x86_64`, and reports `osamail 0.3.0`.
+  `arm64` and `x86_64`, and reports `osamail 0.4.0`.
 - Source install and universal-archive install into isolated temporary prefixes:
   passed.
-- `OSAMAIL_INTEGRATION=1 cargo test --test macos_integration -- --ignored
-  --nocapture`: 5 passed, 0 failed, including the subject-only unread listing.
+- `OSAMAIL_INTEGRATION=1 cargo test --all-features --test macos_integration
+  -- --ignored`: 8 passed, 0 failed, including mailbox discovery plus mark and
+  move dry runs that did not mutate Mail.
 - Privacy-preserving live acceptance checks passed for `doctor`, account schema,
   100-message recent listing, unread listing/count, metadata search, full
   `show`, and Unicode/quotes/newline send dry-run.
@@ -67,7 +74,7 @@ Last updated: 2026-07-29
 - English and Simplified Chinese README section parity passed; the universal
   release archive contains both `README.md` and `README.zh-CN.md`.
 - Both READMEs passed heading, code-fence, and local-link validation with one
-  H1, 12 matching H2 sections, and 16 closed code blocks each.
+  H1, 12 matching H2 sections, and 20 closed code blocks each.
 - Every command and option used in the READMEs was checked against the current
   top-level and subcommand help output.
 - GitHub Actions workflow syntax passed `actionlint` 1.7.7 and YAML parsing.
@@ -90,5 +97,9 @@ Last updated: 2026-07-29
   universal `arm64`/`x86_64` archive reporting `osamail 0.3.0`.
 - A live, privacy-preserving `mark read --dry-run --json` acceptance check and
   its opt-in macOS integration test passed without changing message state.
+- The complete required local check sequence passed for OsaMail 0.4.0 on
+  release-candidate commit `551cc79`, including 57 tests, nine embedded JXA
+  syntax checks, 48 packaged files, publish dry-run, smoke tests, and a
+  universal `arm64`/`x86_64` archive reporting `osamail 0.4.0`.
 
 Validation results are recorded only after the command has completed.

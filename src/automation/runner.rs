@@ -27,10 +27,12 @@ pub trait AutomationRunner {
 pub enum Script {
     Doctor,
     Accounts,
+    ListMailboxes,
     ListMessages,
     ShowMessage,
     OpenMessage,
     MarkMessage,
+    MoveMessage,
     SendMessage,
 }
 
@@ -39,10 +41,12 @@ impl Script {
         match self {
             Self::Doctor => include_str!("scripts/doctor.js"),
             Self::Accounts => include_str!("scripts/accounts.js"),
+            Self::ListMailboxes => include_str!("scripts/list_mailboxes.js"),
             Self::ListMessages => include_str!("scripts/list_messages.js"),
             Self::ShowMessage => include_str!("scripts/show_message.js"),
             Self::OpenMessage => include_str!("scripts/open_message.js"),
             Self::MarkMessage => include_str!("scripts/mark_message.js"),
+            Self::MoveMessage => include_str!("scripts/move_message.js"),
             Self::SendMessage => include_str!("scripts/send_message.js"),
         }
     }
@@ -295,6 +299,24 @@ mod tests {
             !command
                 .get_args()
                 .any(|arg| arg.to_string_lossy().contains(secret))
+        );
+    }
+
+    #[test]
+    fn move_script_gates_the_write_behind_dry_run() {
+        let source = Script::MoveMessage.source();
+        let gate = source
+            .find("if (!request.dry_run && !alreadyThere)")
+            .expect("move script should gate mutation");
+        let mutation = source
+            .find("Mail.move(message, { to: destination })")
+            .expect("move script should contain one explicit move");
+        assert!(gate < mutation);
+        assert_eq!(
+            source
+                .matches("Mail.move(message, { to: destination })")
+                .count(),
+            1
         );
     }
 

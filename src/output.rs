@@ -5,7 +5,8 @@ use serde::Serialize;
 use crate::{
     error::OsaMailError,
     model::{
-        Account, DoctorReport, MarkOutcome, MarkResult, MessageDetail, MessageSummary, SendResult,
+        Account, DoctorReport, MailboxSummary, MarkBatchResult, MarkOutcome, MarkResult,
+        MessageDetail, MessageSummary, OrganizationOutcome, OrganizationResult, SendResult,
         Success,
     },
 };
@@ -14,6 +15,21 @@ use crate::{
 struct ErrorEnvelope<'a> {
     ok: bool,
     error: ErrorBody<'a>,
+}
+
+pub fn write_mailboxes(
+    writer: &mut dyn Write,
+    mailboxes: &[MailboxSummary],
+) -> Result<(), OsaMailError> {
+    if mailboxes.is_empty() {
+        writeln!(writer, "No Apple Mail mailboxes found.")?;
+        return Ok(());
+    }
+    for mailbox in mailboxes {
+        writeln!(writer, "{}\t{}", mailbox.account, mailbox.path.join(" / "))?;
+        writeln!(writer, "  ref: {}", mailbox.reference)?;
+    }
+    Ok(())
 }
 
 #[derive(Serialize)]
@@ -202,6 +218,63 @@ pub fn write_mark_result(writer: &mut dyn Write, result: &MarkResult) -> Result<
                 result.action.as_str()
             )?;
         }
+    }
+    Ok(())
+}
+
+pub fn write_mark_batch_result(
+    writer: &mut dyn Write,
+    result: &MarkBatchResult,
+) -> Result<(), OsaMailError> {
+    writeln!(
+        writer,
+        "{}: {} succeeded, {} failed",
+        result.action.as_str(),
+        result.succeeded,
+        result.failed
+    )?;
+    for item in &result.items {
+        if let Some(outcome) = item.outcome {
+            let outcome = match outcome {
+                MarkOutcome::Changed => "changed",
+                MarkOutcome::AlreadySet => "already_set",
+                MarkOutcome::WouldChange => "would_change",
+            };
+            writeln!(writer, "{}\t{}", outcome, item.reference)?;
+        } else if let Some(error) = &item.error {
+            writeln!(writer, "failed\t{}\t{}", item.reference, error.code)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn write_organization_result(
+    writer: &mut dyn Write,
+    result: &OrganizationResult,
+) -> Result<(), OsaMailError> {
+    let verb = result.action.as_str();
+    writeln!(
+        writer,
+        "{verb}: {} succeeded, {} failed",
+        result.succeeded, result.failed
+    )?;
+    for item in &result.items {
+        if let Some(outcome) = item.outcome {
+            let outcome = match outcome {
+                OrganizationOutcome::Moved => "moved",
+                OrganizationOutcome::AlreadyThere => "already_there",
+                OrganizationOutcome::WouldMove => "would_move",
+            };
+            writeln!(writer, "{outcome}\t{}", item.reference)?;
+        } else if let Some(error) = &item.error {
+            writeln!(writer, "failed\t{}\t{}", item.reference, error.code)?;
+        }
+    }
+    if !result.dry_run && result.succeeded > 0 {
+        writeln!(
+            writer,
+            "Moved message references may now be stale; list the destination mailbox for fresh references."
+        )?;
     }
     Ok(())
 }

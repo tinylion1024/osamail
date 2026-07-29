@@ -15,7 +15,8 @@ osamail doctor
 osamail unread --titles
 ```
 
-OsaMail can list, search, show, open, mark, and send plain-text messages. It
+OsaMail can list, search, show, open, mark, organize, and send plain-text
+messages. It can also discover nested mailboxes before you move anything. It
 provides clean terminal output for people and structured JSON for scripts.
 OsaMail is not a standalone email client and does not connect directly to
 Gmail, iCloud Mail, Exchange, or any other provider.
@@ -29,6 +30,7 @@ Gmail, iCloud Mail, Exchange, or any other provider.
 | Avoid another credentials flow | Uses accounts already authenticated in Apple Mail |
 | Keep email access local | No telemetry, private Mail database access, or OsaMail network requests |
 | Change message state deliberately | One `mark` command with a no-change `--dry-run` mode |
+| Organize messages explicitly | Discover mailbox references, preview a move, then apply it |
 | Stay in control before sending | Plain-text send with a no-send `--dry-run` mode |
 
 OsaMail is designed for developers, automation workflows, and macOS users who
@@ -61,12 +63,21 @@ osamail open <ref>
 osamail mark read <ref> --dry-run
 ```
 
+Mailbox destinations use a separate opaque reference. Discover one before
+previewing a move:
+
+```bash
+osamail mailboxes
+osamail move --to <mailbox-ref> <ref> --dry-run
+```
+
 ## Choose a command
 
 | Goal | Command |
 | --- | --- |
 | Check the environment | `osamail doctor` |
 | List configured Mail accounts | `osamail accounts` |
+| Discover mailbox destinations | `osamail mailboxes` |
 | List recent messages | `osamail recent` |
 | List unread messages | `osamail unread` |
 | Count unread messages | `osamail unread --count` |
@@ -75,7 +86,10 @@ osamail mark read <ref> --dry-run
 | Read a message in the terminal | `osamail show <ref>` |
 | Open a message in Apple Mail | `osamail open <ref>` |
 | Preview a message-state change | `osamail mark read <ref> --dry-run` |
-| Change read or flag state | `osamail mark <action> <ref>` |
+| Change read or flag state | `osamail mark <action> <ref>...` |
+| Preview a move | `osamail move --to <mailbox-ref> <ref> --dry-run` |
+| Move messages | `osamail move --to <mailbox-ref> <ref>...` |
+| Archive to an explicit mailbox | `osamail archive --to <mailbox-ref> <ref>...` |
 | Validate a message without sending | `osamail send ... --dry-run` |
 | Send a plain-text message | `osamail send ...` |
 
@@ -98,8 +112,8 @@ Download the universal macOS archive and adjacent SHA-256 file from
 [GitHub Releases](https://github.com/tinylion1024/osamail/releases):
 
 ```bash
-tar -xzf osamail-v0.3.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.3.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.4.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.4.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -109,7 +123,7 @@ common choice on Apple Silicon.
 
 ### Cargo
 
-After version 0.3.0 is available on crates.io:
+After version 0.4.0 is available on crates.io:
 
 ```bash
 cargo install osamail
@@ -128,7 +142,7 @@ cargo install --path .
 - Automation permission for the terminal, IDE, or application running OsaMail.
 - Rust 1.85 or newer only when building from source.
 
-OsaMail 0.3.0 has been developed and live-tested against Mail 16.0 on macOS
+OsaMail 0.4.0 has been developed and live-tested against Mail 16.0 on macOS
 15.3.
 
 ## Common workflows
@@ -198,11 +212,37 @@ osamail mark read <ref>
 osamail mark unread <ref>
 osamail mark flag <ref>
 osamail mark unflag <ref>
+osamail mark read <ref-1> <ref-2>
 ```
 
 The four actions are `read`, `unread`, `flag`, and `unflag`. Results distinguish
 `changed`, `already_set`, and `would_change`, so scripts can stay idempotent and
-dry runs remain explicit. Default and CI tests never change real messages.
+dry runs remain explicit. Repeat message references to process up to 50 items;
+batch results report each success or failure separately. Default and CI tests
+never change real messages.
+
+### Organize messages safely
+
+First discover the exact destination, then preview the operation:
+
+```bash
+osamail mailboxes
+osamail mailboxes --account "Personal"
+osamail move --to <mailbox-ref> <ref-1> <ref-2> --dry-run
+osamail move --to <mailbox-ref> <ref-1> <ref-2>
+```
+
+Use `archive` when you want the result labeled as an archive action:
+
+```bash
+osamail archive --to <archive-mailbox-ref> <ref> --dry-run
+osamail archive --to <archive-mailbox-ref> <ref>
+```
+
+Both commands require a mailbox reference returned by `mailboxes`; OsaMail
+never guesses a localized Archive mailbox name. You can process up to 50
+message references, and batch results report each item separately. A real move
+can make old message references stale, so list the messages again afterward.
 
 ### Send safely
 
@@ -251,8 +291,9 @@ terminal, slow read commands print one delayed status message to stderr. Piped,
 JSON, and quiet output remain unchanged.
 
 Existing 0.2.0 field names remain stable. Message-state result fields are
-introduced in 0.3.0. Optional Mail values may be `null` or omitted depending on
-the response model.
+introduced in 0.3.0; mailbox and organization result fields are introduced in
+0.4.0. Optional Mail values may be `null` or omitted depending on the response
+model.
 
 ## macOS Automation permission
 
@@ -314,6 +355,12 @@ Yes. Use `osamail mark read <ref>`. Start with `--dry-run` to preview the result
 without changing the message. The same command also supports `unread`, `flag`,
 and `unflag`.
 
+### Can OsaMail move or archive messages?
+
+Yes. Run `osamail mailboxes` to get an explicit destination reference, then use
+`move` or `archive` with `--to`. Start with `--dry-run`; OsaMail does not guess
+which localized mailbox should be treated as Archive.
+
 ### Does OsaMail work on Linux or Windows?
 
 Mail operations require macOS and Apple Mail. `--help` and `--version` remain
@@ -322,8 +369,8 @@ portable.
 ## Current limits
 
 OsaMail does not currently support attachments, HTML rendering or composition,
-reply, forward, delete, move, archive, rules, background notifications, signing,
-or encryption. Release artifacts are not code-signed or notarized.
+reply, forward, delete, rules, background notifications, signing, or encryption.
+Release artifacts are not code-signed or notarized.
 
 `open` and window focus depend on Apple Mail's scripting and current UI state.
 Large-mailbox and body searches may require a larger `--timeout`.
