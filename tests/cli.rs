@@ -69,6 +69,16 @@ fn invalid_reference_is_rejected_before_mail_access() {
 }
 
 #[test]
+fn mark_rejects_an_invalid_reference_before_mail_access() {
+    osamail()
+        .args(["mark", "read", "invalid-reference", "--dry-run"])
+        .assert()
+        .failure()
+        .code(2)
+        .stderr(predicate::str::contains("Invalid message reference"));
+}
+
+#[test]
 fn dry_run_never_sends_mail() {
     osamail()
         .args([

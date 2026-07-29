@@ -4,7 +4,10 @@ use serde::Serialize;
 
 use crate::{
     error::OsaMailError,
-    model::{Account, DoctorReport, MessageDetail, MessageSummary, SendResult, Success},
+    model::{
+        Account, DoctorReport, MarkOutcome, MarkResult, MessageDetail, MessageSummary, SendResult,
+        Success,
+    },
 };
 
 #[derive(Serialize)]
@@ -184,6 +187,25 @@ pub fn write_open_result(writer: &mut dyn Write) -> Result<(), OsaMailError> {
     Ok(())
 }
 
+pub fn write_mark_result(writer: &mut dyn Write, result: &MarkResult) -> Result<(), OsaMailError> {
+    match result.outcome {
+        MarkOutcome::Changed => {
+            writeln!(writer, "Marked message as {}.", result.action.as_str())?;
+        }
+        MarkOutcome::AlreadySet => {
+            writeln!(writer, "Message is already {}.", result.action.as_str())?;
+        }
+        MarkOutcome::WouldChange => {
+            writeln!(
+                writer,
+                "Dry run valid: message would be marked {}; no change was made.",
+                result.action.as_str()
+            )?;
+        }
+    }
+    Ok(())
+}
+
 pub fn write_send_result(writer: &mut dyn Write, result: &SendResult) -> Result<(), OsaMailError> {
     if result.dry_run {
         writeln!(
@@ -276,5 +298,22 @@ mod tests {
         let mut bytes = Vec::new();
         write_titles(&mut bytes, &["First".to_owned(), "第二封".to_owned()]).unwrap();
         assert_eq!(String::from_utf8(bytes).unwrap(), "First\n第二封\n");
+    }
+
+    #[test]
+    fn mark_dry_run_output_is_explicit_about_no_change() {
+        let result = MarkResult {
+            reference: "ref".to_owned(),
+            action: crate::model::MarkAction::Unread,
+            outcome: MarkOutcome::WouldChange,
+        };
+        let mut bytes = Vec::new();
+
+        write_mark_result(&mut bytes, &result).unwrap();
+
+        assert_eq!(
+            String::from_utf8(bytes).unwrap(),
+            "Dry run valid: message would be marked unread; no change was made.\n"
+        );
     }
 }

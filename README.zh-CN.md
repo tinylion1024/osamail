@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-在终端中读取、搜索、自动化处理和发送 Apple Mail 邮件。
+在终端中读取、搜索、整理、自动化处理和发送 Apple Mail 邮件。
 
 OsaMail 是一个开源、本地优先的 macOS Apple Mail CLI。它通过系统自带的
 `osascript` 控制已经配置在 Mail 中的账户，因此无需重新配置 IMAP、SMTP、
@@ -14,9 +14,9 @@ osamail doctor
 osamail unread --titles
 ```
 
-OsaMail 支持列出、搜索、查看、打开邮件，以及发送纯文本邮件。它既提供适合人类
-阅读的终端输出，也提供适合脚本的结构化 JSON。OsaMail 不是独立邮件客户端，也
-不会直接连接 Gmail、iCloud Mail、Exchange 或其他邮件服务商。
+OsaMail 支持列出、搜索、查看、打开、标记邮件，以及发送纯文本邮件。它既提供
+适合人类阅读的终端输出，也提供适合脚本的结构化 JSON。OsaMail 不是独立邮件
+客户端，也不会直接连接 Gmail、iCloud Mail、Exchange 或其他邮件服务商。
 
 ## 为什么选择 OsaMail？
 
@@ -26,6 +26,7 @@ OsaMail 支持列出、搜索、查看、打开邮件，以及发送纯文本邮
 | 自动化现有 Apple Mail | 稳定的 CLI 命令和 JSON 输出 |
 | 不想再走一套凭据授权流程 | 使用已在 Apple Mail 中完成认证的账户 |
 | 希望邮件访问保持在本地 | 无遥测、不访问 Mail 私有数据库、不主动联网 |
+| 明确控制邮件状态 | 一个 `mark` 命令，并提供不做修改的 `--dry-run` 演练 |
 | 发送前保持可控 | 支持纯文本发送和“不发送”的 `--dry-run` 演练 |
 
 OsaMail 适合开发者、自动化工作流，以及希望用轻量命令行代替另一个邮件应用的
@@ -50,11 +51,12 @@ osamail recent --limit 5 --json
 ```
 
 邮件列表会返回一个不透明的 `ref`。将这个可以安全作为单个 shell 参数使用的值
-传给下面的命令，即可在终端查看邮件或在 Apple Mail 中打开邮件：
+传给下面的命令，即可查看邮件、在 Apple Mail 中打开邮件，或预演状态修改：
 
 ```bash
 osamail show <ref>
 osamail open <ref>
+osamail mark read <ref> --dry-run
 ```
 
 ## 按目标选择命令
@@ -70,6 +72,8 @@ osamail open <ref>
 | 搜索邮件 | `osamail search "query"` |
 | 在终端阅读邮件 | `osamail show <ref>` |
 | 在 Apple Mail 中打开邮件 | `osamail open <ref>` |
+| 预演邮件状态修改 | `osamail mark read <ref> --dry-run` |
+| 修改已读或旗标状态 | `osamail mark <action> <ref>` |
 | 不发送，只验证邮件参数 | `osamail send ... --dry-run` |
 | 发送纯文本邮件 | `osamail send ...` |
 
@@ -91,8 +95,8 @@ brew install tinylion1024/tap/osamail
 下载通用 macOS 压缩包及旁边的 SHA-256 文件：
 
 ```bash
-tar -xzf osamail-v0.2.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.2.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.3.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.3.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -102,7 +106,7 @@ osamail --version
 
 ### Cargo
 
-0.2.0 发布到 crates.io 后，可运行：
+0.3.0 发布到 crates.io 后，可运行：
 
 ```bash
 cargo install osamail
@@ -121,7 +125,7 @@ cargo install --path .
 - 运行 OsaMail 的终端、IDE 或应用已获得自动化权限。
 - 仅从源码构建时需要 Rust 1.85 或更高版本。
 
-OsaMail 0.2.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
+OsaMail 0.3.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
 
 ## 常用工作流
 
@@ -177,6 +181,22 @@ osamail open <ref>
 主动修改已读状态，也不会加载附件。引用是定位信息，不是持久邮件 ID；移动邮件
 或修改账户后，请重新获取 `ref`。
 
+### 安全修改邮件状态
+
+先预演修改，再移除 `--dry-run` 执行同一个命令：
+
+```bash
+osamail mark read <ref> --dry-run
+osamail mark read <ref>
+osamail mark unread <ref>
+osamail mark flag <ref>
+osamail mark unflag <ref>
+```
+
+四种操作分别是 `read`、`unread`、`flag` 和 `unflag`。结果会明确区分
+`changed`、`already_set` 和 `would_change`，方便脚本保持幂等，也让演练结果
+一目了然。默认测试和 CI 绝不会修改真实邮件。
+
 ### 安全发送
 
 先验证收件人和正文输入，不创建也不发送邮件：
@@ -222,8 +242,8 @@ unread_count="$(osamail unread --count --json | jq -r '.data.count')"
 `--quiet` 不会隐藏错误，也不会阻止明确请求的 JSON 输出。在交互式终端中，读取
 时间较长时会在 stderr 延迟显示一条状态提示；管道、JSON 和静默输出不受影响。
 
-字段名称构成 0.2.0 的机器可读接口。根据响应模型，可选的 Mail 值可能为 `null`
-或被省略。
+现有 0.2.0 字段名称保持稳定；邮件状态结果字段从 0.3.0 开始引入。根据响应模型，
+可选的 Mail 值可能为 `null` 或被省略。
 
 ## macOS 自动化权限
 
@@ -277,7 +297,8 @@ Rust → /usr/bin/osascript → 内嵌 JXA → Apple Mail
 
 ### OsaMail 能标记邮件为已读吗？
 
-0.2.0 暂不支持。修改已读状态和其他邮箱变更操作不在当前命令范围内。
+可以。运行 `osamail mark read <ref>`；建议先添加 `--dry-run` 预演结果，不修改
+邮件。同一个命令也支持 `unread`、`flag` 和 `unflag`。
 
 ### OsaMail 能在 Linux 或 Windows 上使用吗？
 
@@ -285,8 +306,8 @@ Rust → /usr/bin/osascript → 内嵌 JXA → Apple Mail
 
 ## 当前限制
 
-OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、移动、归档、修改
-已读状态、旗标、规则、后台通知、签名或加密。发布产物尚未进行代码签名或公证。
+OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、移动、归档、规则、
+后台通知、签名或加密。发布产物尚未进行代码签名或公证。
 
 `open` 和窗口聚焦效果取决于 Apple Mail 的脚本行为及当前界面状态。大型邮箱或
 正文搜索可能需要更大的 `--timeout`。
