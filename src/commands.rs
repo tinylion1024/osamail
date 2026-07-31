@@ -71,10 +71,11 @@ pub fn execute(
                 Ok(())
             }
         }
-        Command::Mark(args) => mark(cli, runner, output_writer, timeout, args),
+        Command::Mark(args) => mark(cli, runner, input, output_writer, timeout, args),
         Command::Move(args) => organize(
             cli,
             runner,
+            input,
             output_writer,
             timeout,
             args,
@@ -83,6 +84,7 @@ pub fn execute(
         Command::Archive(args) => organize(
             cli,
             runner,
+            input,
             output_writer,
             timeout,
             args,
@@ -429,18 +431,20 @@ fn show(
 fn mark(
     cli: &Cli,
     runner: &dyn AutomationRunner,
+    input: &mut dyn Read,
     writer: &mut dyn Write,
     timeout: Duration,
     args: &MarkArgs,
 ) -> Result<(), OsaMailError> {
+    let references = collect_references(input, &args.references, args.stdin)?;
     let action = match args.action {
         MarkActionArg::Read => MarkAction::Read,
         MarkActionArg::Unread => MarkAction::Unread,
         MarkActionArg::Flag => MarkAction::Flag,
         MarkActionArg::Unflag => MarkAction::Unflag,
     };
-    if args.references.len() == 1 {
-        let result = mark_one(runner, timeout, &args.references[0], action, args.dry_run)?;
+    if references.len() == 1 {
+        let result = mark_one(runner, timeout, &references[0], action, args.dry_run)?;
         return if cli.json {
             output::write_json_success(writer, result)
         } else if !cli.quiet {
@@ -450,9 +454,9 @@ fn mark(
         };
     }
 
-    let mut items = Vec::with_capacity(args.references.len());
+    let mut items = Vec::with_capacity(references.len());
     let mut succeeded = 0;
-    for reference in &args.references {
+    for reference in &references {
         match mark_one(runner, timeout, reference, action, args.dry_run) {
             Ok(result) => {
                 succeeded += 1;
@@ -526,20 +530,16 @@ fn mark_one(
 fn organize(
     cli: &Cli,
     runner: &dyn AutomationRunner,
+    input: &mut dyn Read,
     writer: &mut dyn Write,
     timeout: Duration,
     args: &OrganizeArgs,
     action: OrganizationAction,
 ) -> Result<(), OsaMailError> {
+    let references = collect_references(input, &args.references, args.stdin)?;
     let destination = reference::decode_mailbox(&args.to)?;
-    if args.references.len() == 1 {
-        let item = organize_one(
-            runner,
-            timeout,
-            &args.references[0],
-            &destination,
-            args.dry_run,
-        )?;
+    if references.len() == 1 {
+        let item = organize_one(runner, timeout, &references[0], &destination, args.dry_run)?;
         let result = OrganizationResult {
             action,
             destination_reference: args.to.clone(),
@@ -552,9 +552,9 @@ fn organize(
         return write_organization_result(cli, writer, &result);
     }
 
-    let mut items = Vec::with_capacity(args.references.len());
+    let mut items = Vec::with_capacity(references.len());
     let mut succeeded = 0;
-    for message_reference in &args.references {
+    for message_reference in &references {
         match organize_one(
             runner,
             timeout,
@@ -587,6 +587,51 @@ fn organize(
         items,
     };
     write_organization_result(cli, writer, &result)
+}
+
+fn collect_references(
+    input: &mut dyn Read,
+    arguments: &[String],
+    read_stdin: bool,
+) -> Result<Vec<String>, OsaMailError> {
+    const MAX_REFERENCES: usize = 50;
+    const MAX_STDIN_BYTES: usize = 64 * 1024;
+
+    let mut references = arguments.to_vec();
+    if read_stdin {
+        let mut bytes = Vec::new();
+        input
+            .take((MAX_STDIN_BYTES + 1) as u64)
+            .read_to_end(&mut bytes)?;
+        if bytes.len() > MAX_STDIN_BYTES {
+            return Err(OsaMailError::InvalidArguments(format!(
+                "standard input must not exceed {MAX_STDIN_BYTES} bytes"
+            )));
+        }
+        let text = std::str::from_utf8(&bytes).map_err(|_| {
+            OsaMailError::InvalidArguments(
+                "standard input must contain UTF-8 message references".to_owned(),
+            )
+        })?;
+        references.extend(
+            text.lines()
+                .map(str::trim)
+                .filter(|line| !line.is_empty())
+                .map(str::to_owned),
+        );
+    }
+
+    if references.is_empty() {
+        return Err(OsaMailError::InvalidArguments(
+            "provide at least one message reference or use --stdin".to_owned(),
+        ));
+    }
+    if references.len() > MAX_REFERENCES {
+        return Err(OsaMailError::InvalidArguments(format!(
+            "at most {MAX_REFERENCES} message references are allowed"
+        )));
+    }
+    Ok(references)
 }
 
 fn organize_one(
@@ -1172,6 +1217,149 @@ mod tests {
             "INVALID_REFERENCE"
         );
         assert_eq!(runner.requests.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn mark_reads_ordered_references_from_stdin() {
+        let first = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 41,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let second = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 42,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let cli =
+            Cli::try_parse_from(["osamail", "mark", "read", "--stdin", "--dry-run", "--json"])
+                .unwrap();
+        let runner = FakeRunner::new(vec![
+            Ok(json!({"ok": true, "data": {"already_set": false}})),
+            Ok(json!({"ok": true, "data": {"already_set": true}})),
+        ]);
+        let input_bytes = format!("\n{first}\r\n{second}\n").into_bytes();
+        let mut input = input_bytes.as_slice();
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut input, &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["total"], 2);
+        assert_eq!(value["data"]["items"][0]["ref"], first);
+        assert_eq!(value["data"]["items"][1]["ref"], second);
+        let requests = runner.requests.lock().unwrap();
+        assert_eq!(requests[0]["locator"]["message_id"], 41);
+        assert_eq!(requests[1]["locator"]["message_id"], 42);
+    }
+
+    #[test]
+    fn one_stdin_reference_preserves_the_single_mark_result_shape() {
+        let reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 43,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let cli =
+            Cli::try_parse_from(["osamail", "mark", "read", "--stdin", "--dry-run", "--json"])
+                .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_set": false}
+        }))]);
+        let input_bytes = format!("{reference}\n").into_bytes();
+        let mut input = input_bytes.as_slice();
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut input, &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["ref"], reference);
+        assert_eq!(value["data"]["outcome"], "would_change");
+        assert!(value["data"].get("items").is_none());
+    }
+
+    #[test]
+    fn archive_reads_a_reference_from_stdin_in_dry_run_mode() {
+        let message_reference = reference::encode(&crate::model::MessageLocator {
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Inbox".to_owned()],
+            message_id: 44,
+            internet_message_id: None,
+        })
+        .unwrap();
+        let destination_reference = reference::encode_mailbox(&crate::model::MailboxLocator {
+            kind: reference::MAILBOX_REFERENCE_KIND.to_owned(),
+            version: crate::model::REFERENCE_VERSION,
+            account: "iCloud".to_owned(),
+            mailbox_path: vec!["Archive".to_owned()],
+        })
+        .unwrap();
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "archive",
+            "--to",
+            &destination_reference,
+            "--stdin",
+            "--dry-run",
+            "--json",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"already_there": false}
+        }))]);
+        let input_bytes = format!("{message_reference}\n").into_bytes();
+        let mut input = input_bytes.as_slice();
+        let mut output = Vec::new();
+
+        execute(&cli, &runner, &mut input, &mut output).unwrap();
+
+        let value: Value = serde_json::from_slice(&output).unwrap();
+        assert_eq!(value["data"]["action"], "archive");
+        assert_eq!(value["data"]["total"], 1);
+        assert_eq!(value["data"]["items"][0]["ref"], message_reference);
+        assert_eq!(value["data"]["items"][0]["outcome"], "would_move");
+    }
+
+    #[test]
+    fn combined_reference_input_keeps_the_fifty_message_limit() {
+        let arguments = ["osamail", "mark", "read"]
+            .into_iter()
+            .map(str::to_owned)
+            .chain((0..50).map(|index| format!("reference-{index}")))
+            .chain(["--stdin".to_owned()]);
+        let cli = Cli::try_parse_from(arguments).unwrap();
+        let runner = FakeRunner::new(Vec::new());
+        let mut input = "one-more-reference\n".as_bytes();
+
+        let error = execute(&cli, &runner, &mut input, &mut Vec::new()).unwrap_err();
+
+        assert_eq!(error.code(), "INVALID_ARGUMENTS");
+        assert!(error.to_string().contains("at most 50"));
+        assert!(runner.requests.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn empty_stdin_reference_input_is_rejected_before_mail_access() {
+        let cli = Cli::try_parse_from(["osamail", "mark", "flag", "--stdin"]).unwrap();
+        let runner = FakeRunner::new(Vec::new());
+        let mut input = "\n  \n".as_bytes();
+
+        let error = execute(&cli, &runner, &mut input, &mut Vec::new()).unwrap_err();
+
+        assert_eq!(error.code(), "INVALID_ARGUMENTS");
+        assert!(runner.requests.lock().unwrap().is_empty());
     }
 
     #[test]

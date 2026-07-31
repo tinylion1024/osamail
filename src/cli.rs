@@ -200,26 +200,44 @@ pub struct ReferenceArgs {
 }
 
 #[derive(Debug, Args)]
+#[command(group(
+    ArgGroup::new("reference_source")
+        .args(["references", "stdin"])
+        .required(true)
+        .multiple(true)
+))]
 pub struct MarkArgs {
     /// State to apply to the message.
     #[arg(value_enum)]
     pub action: MarkActionArg,
     /// Opaque references returned by recent, unread, or search.
-    #[arg(value_name = "REF", num_args = 1..=50)]
+    #[arg(value_name = "REF", num_args = 0..=50)]
     pub references: Vec<String>,
+    /// Read one opaque message reference per line from standard input.
+    #[arg(long)]
+    pub stdin: bool,
     /// Validate the message and report the outcome without changing Mail.
     #[arg(long)]
     pub dry_run: bool,
 }
 
 #[derive(Debug, Args)]
+#[command(group(
+    ArgGroup::new("reference_source")
+        .args(["references", "stdin"])
+        .required(true)
+        .multiple(true)
+))]
 pub struct OrganizeArgs {
     /// Opaque mailbox reference returned by mailboxes.
     #[arg(long, value_name = "MAILBOX_REF")]
     pub to: String,
     /// Opaque message references returned by recent, unread, or search.
-    #[arg(value_name = "REF", num_args = 1..=50)]
+    #[arg(value_name = "REF", num_args = 0..=50)]
     pub references: Vec<String>,
+    /// Read one opaque message reference per line from standard input.
+    #[arg(long)]
+    pub stdin: bool,
     /// Validate messages and the destination without moving anything.
     #[arg(long)]
     pub dry_run: bool,
@@ -441,6 +459,35 @@ mod tests {
             )
             .is_err()
         );
+    }
+
+    #[test]
+    fn mutation_commands_accept_explicit_stdin_reference_input() {
+        let mark = Cli::try_parse_from(["osamail", "mark", "read", "--stdin"]).unwrap();
+        match mark.command {
+            Command::Mark(args) => {
+                assert!(args.references.is_empty());
+                assert!(args.stdin);
+            }
+            _ => panic!("expected mark"),
+        }
+
+        for command in ["move", "archive"] {
+            let cli = Cli::try_parse_from(["osamail", command, "--to", "mailbox-ref", "--stdin"])
+                .unwrap();
+            let args = match cli.command {
+                Command::Move(args) | Command::Archive(args) => args,
+                _ => panic!("expected organization command"),
+            };
+            assert!(args.references.is_empty());
+            assert!(args.stdin);
+        }
+    }
+
+    #[test]
+    fn mutation_commands_require_a_reference_source() {
+        assert!(Cli::try_parse_from(["osamail", "mark", "read"]).is_err());
+        assert!(Cli::try_parse_from(["osamail", "move", "--to", "mailbox-ref"]).is_err());
     }
 
     #[test]

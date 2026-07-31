@@ -100,3 +100,14 @@ the Mac's calendar. Rust rejects invalid dates and reversed or empty ranges
 before starting Mail automation. Count queries retain Mail's direct unread-count
 fast path when no date filter is present; date-filtered counts read received
 dates but never message bodies.
+
+## ADR-014: Standard input extends existing batch commands explicitly
+
+`mark`, `move`, and `archive` accept one opaque message reference per nonempty
+line only when `--stdin` is present, avoiding accidental terminal reads. The CLI
+combines positional references first and standard-input references second,
+preserves their order, and applies the existing shared limit of 50 messages.
+Input is bounded to 64 KiB and must be UTF-8; every reference still passes through
+Rust's typed decoder before Mail automation. A single collected reference keeps
+the existing single-item output contract, while larger inputs keep ordered
+per-item outcomes and `--dry-run` behavior.
