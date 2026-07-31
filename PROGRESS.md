@@ -51,8 +51,24 @@ Last updated: 2026-08-01
   outcomes, and single-message output compatibility.
 - [x] Synchronized the English and Simplified Chinese v0.5.0 workflows and
   release metadata.
+- [x] Added synchronized English and Simplified Chinese guides for using
+  OsaMail with Codex or Claude headless mode to summarize subjects, produce a
+  metadata-only triage plan, review dry-run mutations, and opt into selected
+  message-body summaries.
 
 ## Fresh validation evidence
+
+- Both AI workflow guides passed shell syntax, balanced code-fence, local-link,
+  and English/Chinese section-parity checks. Every documented OsaMail, Codex,
+  and Claude option was confirmed against the installed CLI help output.
+- A mock metadata-to-TSV triage flow passed action-shape validation and exact
+  reference-set comparison, preventing omitted, duplicated, or invented
+  message references before any OsaMail dry run.
+- The complete required local check sequence passed on documentation commit
+  `f23c9a9`: formatting, all-target Clippy, 69 regular tests, documentation
+  tests, locked release build, a 50-file package, crates.io publish dry-run,
+  embedded script checks, smoke tests, and the universal `arm64`/`x86_64`
+  archive all succeeded.
 
 - `cargo fmt --all -- --check`: passed.
 - `cargo clippy --all-targets --all-features -- -D warnings`: passed.
