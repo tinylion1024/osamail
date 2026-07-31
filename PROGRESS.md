@@ -130,5 +130,14 @@ Last updated: 2026-08-01
   `x86_64` slices, and passed its adjacent SHA-256 checksum validation.
 - Both v0.5.0 READMEs passed local-link, H1, code-fence, and section-parity
   validation with 12 matching H2 sections and 20 closed code blocks each.
+- OsaMail 0.5.0 was published to crates.io and verified by a clean install from
+  the public registry.
+- GitHub Release `v0.5.0` published its universal macOS archive and checksum;
+  the downloaded public archive passed checksum validation, reported
+  `osamail 0.5.0`, and has SHA-256
+  `1b13efa19795408f2cb3404c0f50ecc47364020944ff2a5815ee8449ee27e156`.
+- The release workflow validated and installed the generated Homebrew formula
+  before publishing it to `tinylion1024/homebrew-tap`. The public formula and
+  a fresh `brew fetch` both resolve OsaMail 0.5.0 with the same release SHA-256.
 
 Validation results are recorded only after the command has completed.
