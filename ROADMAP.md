@@ -54,7 +54,7 @@ documentation will make that behavior explicit.
 
 ## v0.5.0 — focused mailbox workflows
 
-Status: in development.
+Status: release candidate prepared on 2026-08-01.
 
 - Filter `recent`, `unread`, and `search` by an inclusive local `--since`
   date and an exclusive local `--before` date, both written as `YYYY-MM-DD`.
