@@ -15,8 +15,9 @@ osamail unread --titles
 ```
 
 OsaMail 支持列出、搜索、查看、打开、标记、整理邮件，以及发送纯文本邮件。
-移动邮件前，还可以发现嵌套邮箱。它既提供适合人类阅读的终端输出，也提供适合
-脚本的结构化 JSON。OsaMail 不是独立邮件客户端，也不会直接连接 Gmail、
+它还可以按本地日期筛选、发现嵌套邮箱，并从 shell 管道批量读取邮件引用。它既
+提供适合人类阅读的终端输出，也提供适合脚本的结构化 JSON。OsaMail 不是独立
+邮件客户端，也不会直接连接 Gmail、
 iCloud Mail、Exchange 或其他邮件服务商。
 
 ## 为什么选择 OsaMail？
@@ -79,6 +80,7 @@ osamail move --to <mailbox-ref> <ref> --dry-run
 | 列出未读邮件 | `osamail unread` |
 | 统计未读邮件 | `osamail unread --count` |
 | 只输出邮件主题 | `osamail unread --titles` |
+| 按收件日期筛选 | `osamail unread --since 2026-07-01 --before 2026-08-01` |
 | 搜索邮件 | `osamail search "query"` |
 | 在终端阅读邮件 | `osamail show <ref>` |
 | 在 Apple Mail 中打开邮件 | `osamail open <ref>` |
@@ -108,8 +110,8 @@ brew install tinylion1024/tap/osamail
 下载通用 macOS 压缩包及旁边的 SHA-256 文件：
 
 ```bash
-tar -xzf osamail-v0.4.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.4.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.5.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.5.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -119,7 +121,7 @@ osamail --version
 
 ### Cargo
 
-0.4.0 发布到 crates.io 后，可运行：
+从 crates.io 安装最新已发布版本：
 
 ```bash
 cargo install osamail
@@ -138,7 +140,7 @@ cargo install --path .
 - 运行 OsaMail 的终端、IDE 或应用已获得自动化权限。
 - 仅从源码构建时需要 Rust 1.85 或更高版本。
 
-OsaMail 0.4.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
+OsaMail 0.5.0 已在 macOS 15.3 的 Mail 16.0 上开发并进行实际测试。
 
 ## 常用工作流
 
@@ -161,11 +163,14 @@ osamail search "release" --titles
 osamail recent --limit 20
 osamail recent --account "Personal"
 osamail unread --mailbox "INBOX"
+osamail unread --since 2026-07-01 --before 2026-08-01 --titles
 osamail unread --count --json
 ```
 
 默认列表数量为 10，允许范围为 1 到 200。账户名称必须与 Apple Mail 完全一致。
-邮箱名称可能经过本地化，也可能包含嵌套层级。
+邮箱名称可能经过本地化，也可能包含嵌套层级。`--since` 包含当天，`--before`
+不包含当天；两者都按 Mac 本地日历和邮件收件日期计算，并严格使用
+`YYYY-MM-DD` 格式。
 
 ### 搜索 Apple Mail
 
@@ -175,10 +180,12 @@ osamail search "notice" --from "alerts@example.com"
 osamail search "quarterly" --subject "report"
 osamail search "security" --unread
 osamail search "exact body text" --body
+osamail search --since 2026-07-01 --before 2026-08-01 --titles
 ```
 
 位置参数默认搜索主题和发件人元数据，`--from` 和 `--subject` 用于增加筛选条件。
-正文搜索需要显式添加 `--body`，因为它在大型邮箱中可能明显更慢。
+如果已经提供发件人、主题或日期筛选，可以省略查询词。正文搜索需要显式添加
+`--body`，因为它在大型邮箱中可能明显更慢。
 
 ### 查看或打开邮件
 
@@ -205,12 +212,14 @@ osamail mark unread <ref>
 osamail mark flag <ref>
 osamail mark unflag <ref>
 osamail mark read <ref-1> <ref-2>
+printf '%s\n' "$REF_1" "$REF_2" | osamail mark read --stdin --dry-run
 ```
 
 四种操作分别是 `read`、`unread`、`flag` 和 `unflag`。结果会明确区分
 `changed`、`already_set` 和 `would_change`，方便脚本保持幂等，也让演练结果
-一目了然。重复提供邮件引用可一次处理最多 50 封邮件；批量结果会分别报告每一项
-成功或失败。默认测试和 CI 绝不会修改真实邮件。
+一目了然。可重复提供邮件引用，也可显式使用 `--stdin`，每个非空行读取一个引用；
+两种方式合计最多处理 50 封邮件。位置参数排在 stdin 输入之前，顺序保持不变，
+批量结果会分别报告每一项成功或失败。默认测试和 CI 绝不会修改真实邮件。
 
 ### 安全整理邮件
 
@@ -221,6 +230,8 @@ osamail mailboxes
 osamail mailboxes --account "Personal"
 osamail move --to <mailbox-ref> <ref-1> <ref-2> --dry-run
 osamail move --to <mailbox-ref> <ref-1> <ref-2>
+printf '%s\n' "$REF_1" "$REF_2" | \
+  osamail move --to "$MAILBOX_REF" --stdin --dry-run
 ```
 
 希望结果明确标记为归档操作时，使用 `archive`：
@@ -266,6 +277,10 @@ osamail search "invoice" --json | jq -r '.data.messages[].subject'
 
 # 在其他命令中使用未读数量
 unread_count="$(osamail unread --count --json | jq -r '.data.count')"
+
+# 预演将返回的所有邮件标为已读
+osamail unread --json | jq -r '.data.messages[].ref' | \
+  osamail mark read --stdin --dry-run
 ```
 
 全局选项可以放在子命令之前或之后：
@@ -280,8 +295,8 @@ unread_count="$(osamail unread --count --json | jq -r '.data.count')"
 时间较长时会在 stderr 延迟显示一条状态提示；管道、JSON 和静默输出不受影响。
 
 现有 0.2.0 字段名称保持稳定；邮件状态结果字段从 0.3.0 开始引入，邮箱与整理
-结果字段从 0.4.0 开始引入。根据响应模型，可选的 Mail 值可能为 `null` 或被
-省略。
+结果字段从 0.4.0 开始引入，日期筛选和 stdin 引用批处理从 0.5.0 开始引入。
+根据响应模型，可选的 Mail 值可能为 `null` 或被省略。
 
 ## macOS 自动化权限
 
@@ -358,7 +373,7 @@ OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、�
 
 ## 项目
 
-- [v0.4.0 前的版本路线图](ROADMAP.md)
+- [v0.5.0 前的版本路线图](ROADMAP.md)
 - [参与贡献](CONTRIBUTING.md)
 - [架构说明](docs/architecture.md)
 - [发布指南](docs/releasing.md)

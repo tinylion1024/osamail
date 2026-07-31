@@ -16,8 +16,9 @@ osamail unread --titles
 ```
 
 OsaMail can list, search, show, open, mark, organize, and send plain-text
-messages. It can also discover nested mailboxes before you move anything. It
-provides clean terminal output for people and structured JSON for scripts.
+messages. It can filter by local calendar dates, discover nested mailboxes, and
+process message references from a shell pipeline. It provides clean terminal
+output for people and structured JSON for scripts.
 OsaMail is not a standalone email client and does not connect directly to
 Gmail, iCloud Mail, Exchange, or any other provider.
 
@@ -82,6 +83,7 @@ osamail move --to <mailbox-ref> <ref> --dry-run
 | List unread messages | `osamail unread` |
 | Count unread messages | `osamail unread --count` |
 | Print only subjects | `osamail unread --titles` |
+| Filter by received date | `osamail unread --since 2026-07-01 --before 2026-08-01` |
 | Search messages | `osamail search "query"` |
 | Read a message in the terminal | `osamail show <ref>` |
 | Open a message in Apple Mail | `osamail open <ref>` |
@@ -112,8 +114,8 @@ Download the universal macOS archive and adjacent SHA-256 file from
 [GitHub Releases](https://github.com/tinylion1024/osamail/releases):
 
 ```bash
-tar -xzf osamail-v0.4.0-universal-apple-darwin.tar.gz
-install -m 0755 osamail-v0.4.0/osamail /usr/local/bin/osamail
+tar -xzf osamail-v0.5.0-universal-apple-darwin.tar.gz
+install -m 0755 osamail-v0.5.0/osamail /usr/local/bin/osamail
 osamail --version
 ```
 
@@ -123,7 +125,7 @@ common choice on Apple Silicon.
 
 ### Cargo
 
-After version 0.4.0 is available on crates.io:
+Install the latest published version from crates.io:
 
 ```bash
 cargo install osamail
@@ -142,7 +144,7 @@ cargo install --path .
 - Automation permission for the terminal, IDE, or application running OsaMail.
 - Rust 1.85 or newer only when building from source.
 
-OsaMail 0.4.0 has been developed and live-tested against Mail 16.0 on macOS
+OsaMail 0.5.0 has been developed and live-tested against Mail 16.0 on macOS
 15.3.
 
 ## Common workflows
@@ -167,11 +169,15 @@ Listing commands do not load message bodies. `--titles` cannot be combined with
 osamail recent --limit 20
 osamail recent --account "Personal"
 osamail unread --mailbox "INBOX"
+osamail unread --since 2026-07-01 --before 2026-08-01 --titles
 osamail unread --count --json
 ```
 
 The default list limit is 10; the accepted range is 1 through 200. Account names
 must match Apple Mail exactly. Mailbox names may be localized or nested.
+`--since` includes its date and `--before` excludes its date, using the Mac's
+local calendar and each message's received date. Both values use strict
+`YYYY-MM-DD` format.
 
 ### Search Apple Mail
 
@@ -181,10 +187,12 @@ osamail search "notice" --from "alerts@example.com"
 osamail search "quarterly" --subject "report"
 osamail search "security" --unread
 osamail search "exact body text" --body
+osamail search --since 2026-07-01 --before 2026-08-01 --titles
 ```
 
 The positional query searches subject and sender metadata. `--from` and
-`--subject` add filters. Body search is opt-in because large mailboxes can be
+`--subject` add filters. You may omit the query when a sender, subject, or date
+filter is present. Body search is opt-in because large mailboxes can be
 substantially slower.
 
 ### Show or open a message
@@ -213,13 +221,15 @@ osamail mark unread <ref>
 osamail mark flag <ref>
 osamail mark unflag <ref>
 osamail mark read <ref-1> <ref-2>
+printf '%s\n' "$REF_1" "$REF_2" | osamail mark read --stdin --dry-run
 ```
 
 The four actions are `read`, `unread`, `flag`, and `unflag`. Results distinguish
 `changed`, `already_set`, and `would_change`, so scripts can stay idempotent and
-dry runs remain explicit. Repeat message references to process up to 50 items;
-batch results report each success or failure separately. Default and CI tests
-never change real messages.
+dry runs remain explicit. Repeat message references or pass one reference per
+nonempty line with explicit `--stdin` to process up to 50 items. Positional
+references come first, input order is preserved, and batch results report each
+success or failure separately. Default and CI tests never change real messages.
 
 ### Organize messages safely
 
@@ -230,6 +240,8 @@ osamail mailboxes
 osamail mailboxes --account "Personal"
 osamail move --to <mailbox-ref> <ref-1> <ref-2> --dry-run
 osamail move --to <mailbox-ref> <ref-1> <ref-2>
+printf '%s\n' "$REF_1" "$REF_2" | \
+  osamail move --to "$MAILBOX_REF" --stdin --dry-run
 ```
 
 Use `archive` when you want the result labeled as an archive action:
@@ -276,6 +288,10 @@ osamail search "invoice" --json | jq -r '.data.messages[].subject'
 
 # Use a count in another command
 unread_count="$(osamail unread --count --json | jq -r '.data.count')"
+
+# Preview marking every returned message as read
+osamail unread --json | jq -r '.data.messages[].ref' | \
+  osamail mark read --stdin --dry-run
 ```
 
 Global options can appear before or after a subcommand:
@@ -292,8 +308,8 @@ JSON, and quiet output remain unchanged.
 
 Existing 0.2.0 field names remain stable. Message-state result fields are
 introduced in 0.3.0; mailbox and organization result fields are introduced in
-0.4.0. Optional Mail values may be `null` or omitted depending on the response
-model.
+0.4.0. Date filters and stdin reference batches are introduced in 0.5.0.
+Optional Mail values may be `null` or omitted depending on the response model.
 
 ## macOS Automation permission
 
@@ -377,7 +393,7 @@ Large-mailbox and body searches may require a larger `--timeout`.
 
 ## Project
 
-- [Roadmap through v0.4.0](ROADMAP.md)
+- [Roadmap through v0.5.0](ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
 - [Architecture](docs/architecture.md)
 - [Release guide](docs/releasing.md)
