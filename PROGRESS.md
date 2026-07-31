@@ -1,6 +1,6 @@
 # Progress
 
-Last updated: 2026-07-29
+Last updated: 2026-08-01
 
 ## Phase 0 — environment and Apple Mail automation
 
@@ -44,6 +44,13 @@ Last updated: 2026-07-29
   move and archive workflows.
 - [x] Documented mailbox discovery and organization in synchronized English
   and Simplified Chinese workflows without guessing localized Archive names.
+- [x] Prepared OsaMail 0.5.0 with strict local received-date ranges for
+  `recent`, `unread`, and `search`, including filter-only searches.
+- [x] Added explicit stdin reference batches to `mark`, `move`, and `archive`
+  while preserving the 50-message limit, input order, dry runs, per-item
+  outcomes, and single-message output compatibility.
+- [x] Synchronized the English and Simplified Chinese v0.5.0 workflows and
+  release metadata.
 
 ## Fresh validation evidence
 
@@ -109,5 +116,19 @@ Last updated: 2026-07-29
   before updating `tinylion1024/homebrew-tap`; the tap now distributes
   OsaMail 0.4.0 with checksum
   `3ff1404fee397cfc683930baa7864f594e19c5a3746da77afdda63e87c96b19e`.
+- The complete required local check sequence passed for OsaMail 0.5.0 on
+  release-candidate commit `a996b3b`: formatting, all-target Clippy, 69 regular
+  tests, documentation tests, locked release build, 48-file package,
+  crates.io publish dry-run, embedded JXA and AppleScript syntax checks, smoke
+  tests, and the universal build all succeeded.
+- `OSAMAIL_INTEGRATION=1 cargo test --all-features --test macos_integration
+  -- --ignored --nocapture` passed all 9 real Apple Mail tests, including the
+  local date range and stdin `mark read --dry-run` workflows; no message was
+  mutated or sent.
+- Isolated source and universal-archive installations both reported
+  `osamail 0.5.0`. The archive contains both READMEs, has verified `arm64` and
+  `x86_64` slices, and passed its adjacent SHA-256 checksum validation.
+- Both v0.5.0 READMEs passed local-link, H1, code-fence, and section-parity
+  validation with 12 matching H2 sections and 20 closed code blocks each.
 
 Validation results are recorded only after the command has completed.
