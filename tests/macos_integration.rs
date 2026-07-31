@@ -1,6 +1,7 @@
 #![cfg(target_os = "macos")]
 
-use std::process::{Command, Output};
+use std::io::Write;
+use std::process::{Command, Output, Stdio};
 
 fn run_read_only(args: &[&str]) -> Option<Output> {
     if std::env::var("OSAMAIL_INTEGRATION").as_deref() != Ok("1") {
@@ -13,6 +14,32 @@ fn run_read_only(args: &[&str]) -> Option<Output> {
             .args(args)
             .output()
             .expect("OsaMail integration command should start"),
+    )
+}
+
+fn run_read_only_with_stdin(args: &[&str], input: &str) -> Option<Output> {
+    if std::env::var("OSAMAIL_INTEGRATION").as_deref() != Ok("1") {
+        eprintln!("skipping: set OSAMAIL_INTEGRATION=1 to run local Apple Mail checks");
+        return None;
+    }
+
+    let mut child = Command::new(assert_cmd::cargo::cargo_bin!("osamail"))
+        .args(args)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("OsaMail integration command should start");
+    child
+        .stdin
+        .take()
+        .expect("stdin should be piped")
+        .write_all(input.as_bytes())
+        .expect("message reference should be written to stdin");
+    Some(
+        child
+            .wait_with_output()
+            .expect("OsaMail integration command should finish"),
     )
 }
 
@@ -60,6 +87,23 @@ fn recent_limit_one() {
 
 #[test]
 #[ignore = "requires macOS Automation permission and configured Apple Mail accounts"]
+fn recent_local_date_range() {
+    if let Some(output) = run_read_only(&[
+        "recent",
+        "--since",
+        "1970-01-01",
+        "--before",
+        "2100-01-01",
+        "--limit",
+        "1",
+        "--titles",
+    ]) {
+        assert_success(output);
+    }
+}
+
+#[test]
+#[ignore = "requires macOS Automation permission and configured Apple Mail accounts"]
 fn unread_count() {
     if let Some(output) = run_read_only(&["unread", "--count", "--json"]) {
         assert_success(output);
@@ -87,8 +131,10 @@ fn mark_read_dry_run() {
         .as_str()
         .expect("recent output should contain one message reference");
 
-    let output = run_read_only(&["mark", "read", reference, "--dry-run", "--json"])
-        .expect("integration gate should remain enabled");
+    let stdin = format!("{reference}\n");
+    let output =
+        run_read_only_with_stdin(&["mark", "read", "--stdin", "--dry-run", "--json"], &stdin)
+            .expect("integration gate should remain enabled");
     assert!(output.status.success(), "mark dry-run should succeed");
     let result: serde_json::Value =
         serde_json::from_slice(&output.stdout).expect("mark output should be JSON");

@@ -428,6 +428,14 @@ mod tests {
     }
 
     #[test]
+    fn list_script_never_loads_message_bodies_for_metadata_output() {
+        let source = Script::ListMessages.source();
+        assert!(!source.contains("source.content()"));
+        assert_eq!(source.matches("content: { _contains:").count(), 1);
+        assert!(source.contains("needsDates = needsOutput || request.since || request.before"));
+    }
+
+    #[test]
     fn mark_script_gates_every_write_behind_dry_run() {
         let source = Script::MarkMessage.source();
         assert!(source.contains("if (!request.dry_run && !alreadySet)"));

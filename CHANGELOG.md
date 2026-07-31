@@ -7,6 +7,25 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-01
+
+### Added
+
+- Add inclusive local `--since` and exclusive local `--before` received-date
+  filters to `recent`, `unread`, and `search`, with strict calendar validation.
+- Allow `mark`, `move`, and `archive` to read ordered message references from
+  explicit `--stdin` input while preserving the 50-message limit, dry runs,
+  per-item outcomes, and single-message output shape.
+
+### Changed
+
+- Allow `search` to omit its positional query when a sender, subject, or date
+  filter is present.
+- Lock metadata, title, and count paths against accidental body loading; dated
+  counts read only the received dates needed for filtering.
+- Document the v0.5.0 workflows in synchronized English and Simplified Chinese
+  READMEs.
+
 ## [0.4.0] - 2026-07-29
 
 ### Added
@@ -86,7 +105,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Portable help and version behavior outside macOS.
 - Universal macOS release build and Homebrew packaging support.
 
-[Unreleased]: https://github.com/tinylion1024/osamail/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/tinylion1024/osamail/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/tinylion1024/osamail/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/tinylion1024/osamail/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/tinylion1024/osamail/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/tinylion1024/osamail/compare/v0.1.2...v0.2.0
