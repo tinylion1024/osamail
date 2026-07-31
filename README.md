@@ -311,6 +311,13 @@ introduced in 0.3.0; mailbox and organization result fields are introduced in
 0.4.0. Date filters and stdin reference batches are introduced in 0.5.0.
 Optional Mail values may be `null` or omitted depending on the response model.
 
+## AI-assisted email workflows
+
+Pipe subject-only or metadata JSON into Codex CLI or Claude Code to create a
+daily digest or a reviewed triage plan. Keep model output separate from Mail
+operations, then validate selected references with `--dry-run` before applying
+anything. See the [Codex and Claude workflow examples](docs/ai-workflows.md).
+
 ## macOS Automation permission
 
 The first live command may ask for permission to control Mail. If access is
@@ -396,6 +403,7 @@ Large-mailbox and body searches may require a larger `--timeout`.
 - [Roadmap through v0.5.0](ROADMAP.md)
 - [Contributing](CONTRIBUTING.md)
 - [Architecture](docs/architecture.md)
+- [AI-assisted workflows with Codex and Claude](docs/ai-workflows.md)
 - [Release guide](docs/releasing.md)
 - [Homebrew publishing](docs/homebrew.md)
 - [Changelog](CHANGELOG.md)

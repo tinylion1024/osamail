@@ -7,6 +7,12 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Documentation
+
+- Add English and Simplified Chinese examples for subject-only summaries,
+  metadata-only triage plans, and dry-run-first organization with Codex CLI or
+  Claude Code in non-interactive mode.
+
 ## [0.5.0] - 2026-08-01
 
 ### Added

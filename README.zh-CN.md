@@ -298,6 +298,13 @@ osamail unread --json | jq -r '.data.messages[].ref' | \
 结果字段从 0.4.0 开始引入，日期筛选和 stdin 引用批处理从 0.5.0 开始引入。
 根据响应模型，可选的 Mail 值可能为 `null` 或被省略。
 
+## 使用 AI 辅助整理邮件
+
+把仅含主题或元数据的 JSON 交给 Codex CLI 或 Claude Code，可以生成每日简报或
+待人工检查的整理计划。模型输出与 Mail 操作保持分离，只有选中的引用通过
+`--dry-run` 验证后才正式执行。完整步骤见
+[Codex 与 Claude 邮件整理案例](docs/ai-workflows.zh-CN.md)。
+
 ## macOS 自动化权限
 
 第一次执行真实操作时，macOS 可能会请求控制 Mail 的权限。如果访问被拒绝：
@@ -376,6 +383,7 @@ OsaMail 暂不支持附件、HTML 渲染或编写、回复、转发、删除、�
 - [v0.5.0 前的版本路线图](ROADMAP.md)
 - [参与贡献](CONTRIBUTING.md)
 - [架构说明](docs/architecture.md)
+- [使用 Codex 与 Claude 辅助整理邮件](docs/ai-workflows.zh-CN.md)
 - [发布指南](docs/releasing.md)
 - [Homebrew 发布](docs/homebrew.md)
 - [更新日志](CHANGELOG.md)
