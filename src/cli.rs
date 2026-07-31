@@ -107,6 +107,12 @@ pub struct ListArgs {
     /// Restrict results to a mailbox name.
     #[arg(long)]
     pub mailbox: Option<String>,
+    /// Include messages received on or after this local date.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_calendar_date)]
+    pub since: Option<String>,
+    /// Include messages received before this local date.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_calendar_date)]
+    pub before: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -126,12 +132,18 @@ pub struct UnreadArgs {
     /// Restrict results to a mailbox name.
     #[arg(long)]
     pub mailbox: Option<String>,
+    /// Include messages received on or after this local date.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_calendar_date)]
+    pub since: Option<String>,
+    /// Include messages received before this local date.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_calendar_date)]
+    pub before: Option<String>,
 }
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
     /// Text to search in subject and sender.
-    pub query: String,
+    pub query: Option<String>,
     /// Restrict results to an exact Apple Mail account name.
     #[arg(long)]
     pub account: Option<String>,
@@ -156,6 +168,12 @@ pub struct SearchArgs {
     /// Include body content in the Mail-side search.
     #[arg(long)]
     pub body: bool,
+    /// Include messages received on or after this local date.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_calendar_date)]
+    pub since: Option<String>,
+    /// Include messages received before this local date.
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_calendar_date)]
+    pub before: Option<String>,
 }
 
 #[derive(Debug, Args)]
@@ -273,6 +291,37 @@ fn parse_positive_usize(value: &str) -> Result<usize, String> {
     }
 }
 
+fn parse_calendar_date(value: &str) -> Result<String, String> {
+    let invalid = || "date must be a valid calendar date in YYYY-MM-DD format".to_owned();
+    let bytes = value.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || bytes
+            .iter()
+            .enumerate()
+            .any(|(index, byte)| index != 4 && index != 7 && !byte.is_ascii_digit())
+    {
+        return Err(invalid());
+    }
+
+    let year = value[0..4].parse::<u16>().map_err(|_| invalid())?;
+    let month = value[5..7].parse::<u8>().map_err(|_| invalid())?;
+    let day = value[8..10].parse::<u8>().map_err(|_| invalid())?;
+    let leap_year = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let days_in_month = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap_year => 29,
+        2 => 28,
+        _ => return Err(invalid()),
+    };
+    if year == 0 || day == 0 || day > days_in_month {
+        return Err(invalid());
+    }
+    Ok(value.to_owned())
+}
+
 #[cfg(test)]
 mod tests {
     use clap::{CommandFactory, Parser};
@@ -313,6 +362,42 @@ mod tests {
     #[test]
     fn unread_titles_conflicts_with_count() {
         assert!(Cli::try_parse_from(["osamail", "unread", "--titles", "--count"]).is_err());
+    }
+
+    #[test]
+    fn read_commands_accept_local_date_filters() {
+        let recent = Cli::try_parse_from([
+            "osamail",
+            "recent",
+            "--since",
+            "2024-02-29",
+            "--before",
+            "2024-03-02",
+        ])
+        .unwrap();
+        match recent.command {
+            Command::Recent(args) => {
+                assert_eq!(args.since.as_deref(), Some("2024-02-29"));
+                assert_eq!(args.before.as_deref(), Some("2024-03-02"));
+            }
+            _ => panic!("expected recent"),
+        }
+
+        let search = Cli::try_parse_from(["osamail", "search", "--since", "2024-01-01"]).unwrap();
+        match search.command {
+            Command::Search(args) => {
+                assert!(args.query.is_none());
+                assert_eq!(args.since.as_deref(), Some("2024-01-01"));
+            }
+            _ => panic!("expected search"),
+        }
+    }
+
+    #[test]
+    fn read_commands_reject_invalid_calendar_dates() {
+        for date in ["2024-2-01", "2023-02-29", "2024-04-31", "0000-01-01"] {
+            assert!(Cli::try_parse_from(["osamail", "unread", "--since", date]).is_err());
+        }
     }
 
     #[test]

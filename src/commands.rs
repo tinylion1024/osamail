@@ -250,6 +250,8 @@ fn list_recent(
             from: None,
             subject: None,
             search_body: false,
+            since: args.since.clone(),
+            before: args.before.clone(),
         },
     )
 }
@@ -273,7 +275,10 @@ fn unread(
         from: None,
         subject: None,
         search_body: false,
+        since: args.since.clone(),
+        before: args.before.clone(),
     };
+    validate_date_range(request.since.as_deref(), request.before.as_deref())?;
     if args.count {
         let data: MessagesData = run_automation(
             runner,
@@ -301,9 +306,14 @@ fn search(
     timeout: Duration,
     args: &SearchArgs,
 ) -> Result<(), OsaMailError> {
-    if args.query.is_empty() && args.from.is_none() && args.subject.is_none() {
+    if args.query.is_none()
+        && args.from.is_none()
+        && args.subject.is_none()
+        && args.since.is_none()
+        && args.before.is_none()
+    {
         return Err(OsaMailError::InvalidArguments(
-            "provide a query, --from, or --subject".to_owned(),
+            "provide a query, --from, --subject, --since, or --before".to_owned(),
         ));
     }
     list_messages(
@@ -318,11 +328,13 @@ fn search(
             account: args.account.clone(),
             mailbox: args.mailbox.clone(),
             count_only: false,
-            query: (!args.query.is_empty()).then(|| args.query.clone()),
+            query: args.query.clone(),
             unread: args.unread,
             from: args.from.clone(),
             subject: args.subject.clone(),
             search_body: args.body,
+            since: args.since.clone(),
+            before: args.before.clone(),
         },
     )
 }
@@ -334,6 +346,7 @@ fn list_messages(
     timeout: Duration,
     request: ListMessagesRequest,
 ) -> Result<(), OsaMailError> {
+    validate_date_range(request.since.as_deref(), request.before.as_deref())?;
     let titles_only = request.titles_only;
     let data: MessagesData = run_automation(
         runner,
@@ -373,6 +386,17 @@ fn list_messages(
     } else {
         Ok(())
     }
+}
+
+fn validate_date_range(since: Option<&str>, before: Option<&str>) -> Result<(), OsaMailError> {
+    if let (Some(since), Some(before)) = (since, before)
+        && since >= before
+    {
+        return Err(OsaMailError::InvalidArguments(
+            "--since must be earlier than --before".to_owned(),
+        ));
+    }
+    Ok(())
 }
 
 fn show(
@@ -909,6 +933,64 @@ mod tests {
         let value: Value = serde_json::from_slice(&output).unwrap();
         assert_eq!(value["data"]["titles"][0], "Release complete");
         assert_eq!(value["data"]["count"], 1);
+    }
+
+    #[test]
+    fn date_filters_are_serialized_without_requiring_a_search_query() {
+        let cli = Cli::try_parse_from([
+            "osamail",
+            "search",
+            "--since",
+            "2024-01-01",
+            "--before",
+            "2024-02-01",
+            "--titles",
+        ])
+        .unwrap();
+        let runner = FakeRunner::new(vec![Ok(json!({
+            "ok": true,
+            "data": {"messages": [], "titles": [], "count": 0}
+        }))]);
+
+        execute(&cli, &runner, &mut "".as_bytes(), &mut Vec::new()).unwrap();
+
+        let requests = runner.requests.lock().unwrap();
+        assert_eq!(requests[0]["operation"], "list_messages");
+        assert_eq!(requests[0]["mode"], "search");
+        assert_eq!(requests[0]["query"], Value::Null);
+        assert_eq!(requests[0]["since"], "2024-01-01");
+        assert_eq!(requests[0]["before"], "2024-02-01");
+    }
+
+    #[test]
+    fn invalid_date_range_is_rejected_before_mail_access() {
+        for arguments in [
+            vec![
+                "osamail",
+                "recent",
+                "--since",
+                "2024-02-01",
+                "--before",
+                "2024-02-01",
+            ],
+            vec![
+                "osamail",
+                "unread",
+                "--count",
+                "--since",
+                "2024-03-01",
+                "--before",
+                "2024-02-01",
+            ],
+        ] {
+            let cli = Cli::try_parse_from(arguments).unwrap();
+            let runner = FakeRunner::new(Vec::new());
+
+            let error = execute(&cli, &runner, &mut "".as_bytes(), &mut Vec::new()).unwrap_err();
+
+            assert_eq!(error.code(), "INVALID_ARGUMENTS");
+            assert!(runner.requests.lock().unwrap().is_empty());
+        }
     }
 
     #[test]

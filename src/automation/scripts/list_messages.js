@@ -139,6 +139,28 @@ function optionalDate(value) {
     }
 }
 
+function localDateStart(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value))) {
+        throw new Error("OSAMAIL_INVALID_REQUEST");
+    }
+    var parts = String(value).split("-");
+    var year = Number(parts[0]);
+    var month = Number(parts[1]);
+    var day = Number(parts[2]);
+    var date = new Date(0);
+    date.setFullYear(year, month - 1, day);
+    date.setHours(0, 0, 0, 0);
+    if (
+        year === 0 ||
+        date.getFullYear() !== year ||
+        date.getMonth() !== month - 1 ||
+        date.getDate() !== day
+    ) {
+        throw new Error("OSAMAIL_INVALID_REQUEST");
+    }
+    return date.getTime();
+}
+
 function asArray(value) {
     if (Array.isArray(value)) {
         return value;
@@ -174,10 +196,11 @@ function messageRows(mailboxes, request) {
     var needsUnread = request.mode === "unread" || Boolean(request.unread);
     var needsOutput = !request.count_only;
     var needsRows = needsOutput && !request.titles_only;
+    var needsDates = needsOutput || request.since || request.before;
 
     for (var boxIndex = 0; boxIndex < mailboxes.length; boxIndex += 1) {
         var source = bodySearchSource(mailboxes[boxIndex].messages, request);
-        var dates = needsOutput ? asArray(source.dateReceived()) : [];
+        var dates = needsDates ? asArray(source.dateReceived()) : [];
         var readStatuses =
             needsRows || needsUnread ? asArray(source.readStatus()) : [];
         var senders =
@@ -217,6 +240,10 @@ function messageRows(mailboxes, request) {
         for (var messageIndex = 0; messageIndex < sourceCount; messageIndex += 1) {
             var sender = optionalString(senders[messageIndex]) || "";
             var subject = optionalString(subjects[messageIndex]) || "";
+            var receivedAt = needsDates
+                ? optionalDate(dates[messageIndex])
+                : null;
+            var receivedTime = receivedAt ? Date.parse(receivedAt) : null;
 
             if (
                 request.account &&
@@ -241,13 +268,24 @@ function messageRows(mailboxes, request) {
             ) {
                 continue;
             }
+            if (
+                request.since &&
+                (receivedTime === null || receivedTime < request._since_time)
+            ) {
+                continue;
+            }
+            if (
+                request.before &&
+                (receivedTime === null || receivedTime >= request._before_time)
+            ) {
+                continue;
+            }
 
             count += 1;
             if (!needsOutput) {
                 continue;
             }
 
-            var receivedAt = optionalDate(dates[messageIndex]);
             if (request.titles_only) {
                 candidates.push({
                     _received_time: receivedAt ? Date.parse(receivedAt) : 0,
@@ -319,6 +357,19 @@ function run(argv) {
         if (Number(request.limit) < 1 || Number(request.limit) > 200) {
             throw new Error("OSAMAIL_INVALID_REQUEST");
         }
+        request._since_time = request.since
+            ? localDateStart(request.since)
+            : null;
+        request._before_time = request.before
+            ? localDateStart(request.before)
+            : null;
+        if (
+            request._since_time !== null &&
+            request._before_time !== null &&
+            request._since_time >= request._before_time
+        ) {
+            throw new Error("OSAMAIL_INVALID_REQUEST");
+        }
 
         var Mail = Application("com.apple.mail");
         if (request.account) {
@@ -333,7 +384,9 @@ function run(argv) {
             request.mode === "unread" &&
             !request.query &&
             !request.from &&
-            !request.subject
+            !request.subject &&
+            !request.since &&
+            !request.before
         ) {
             return response({
                 messages: [],

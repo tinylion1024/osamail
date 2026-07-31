@@ -60,6 +60,23 @@ fn recent_limit_one() {
 
 #[test]
 #[ignore = "requires macOS Automation permission and configured Apple Mail accounts"]
+fn recent_local_date_range() {
+    if let Some(output) = run_read_only(&[
+        "recent",
+        "--since",
+        "1970-01-01",
+        "--before",
+        "2100-01-01",
+        "--limit",
+        "1",
+        "--titles",
+    ]) {
+        assert_success(output);
+    }
+}
+
+#[test]
+#[ignore = "requires macOS Automation permission and configured Apple Mail accounts"]
 fn unread_count() {
     if let Some(output) = run_read_only(&["unread", "--count", "--json"]) {
         assert_success(output);

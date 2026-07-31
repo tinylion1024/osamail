@@ -288,6 +288,8 @@ pub struct ListMessagesRequest {
     pub from: Option<String>,
     pub subject: Option<String>,
     pub search_body: bool,
+    pub since: Option<String>,
+    pub before: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

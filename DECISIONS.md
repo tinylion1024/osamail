@@ -89,3 +89,14 @@ Both require a typed mailbox reference from `mailboxes`; OsaMail never guesses a
 localized archive mailbox name. Cross-account moves are rejected, every write is
 gated behind `--dry-run`, and successful moves warn that old message references
 may be stale.
+
+## ADR-013: Date ranges use local calendar boundaries
+
+`recent`, `unread`, and `search` accept strict `YYYY-MM-DD` values rather than
+adding a date/time parsing dependency or exposing several overlapping relative
+time concepts. `--since` is inclusive, `--before` is exclusive, and both are
+converted to local midnight by the embedded JXA script so their meaning matches
+the Mac's calendar. Rust rejects invalid dates and reversed or empty ranges
+before starting Mail automation. Count queries retain Mail's direct unread-count
+fast path when no date filter is present; date-filtered counts read received
+dates but never message bodies.
